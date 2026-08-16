@@ -1,26 +1,22 @@
 package com.mascot.overlay
 
 import android.accessibilityservice.AccessibilityService
-import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
 import android.view.Gravity
-import android.view.LayoutInflater
-import android.view.MotionEvent
-import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
-import android.widget.Button
-import android.widget.TextView
+import com.mascot.overlay.bridge.ServiceBridge
+import com.mascot.overlay.ui.OverlayView
 
-class PetAccessibilityService : AccessibilityService() {
+class PetAccessibilityService : AccessibilityService(), ServiceBridge {
 
     companion object {
         var instance: PetAccessibilityService? = null
     }
 
     private lateinit var windowManager: WindowManager
-    private var petView: View? = null
+    private var overlayView: OverlayView? = null
     private var layoutParams: WindowManager.LayoutParams? = null
 
     override fun onServiceConnected() {
@@ -44,15 +40,8 @@ class PetAccessibilityService : AccessibilityService() {
         super.onDestroy()
     }
 
-    /** 显示悬浮球，如果已显示则忽略 */
     fun showPet() {
-        if (petView != null) return
-
-        val inflater = LayoutInflater.from(this)
-        val view = inflater.inflate(R.layout.overlay_pet, null)
-
-        val body = view.findViewById<TextView>(R.id.overlay_body)
-        val closeButton = view.findViewById<Button>(R.id.overlay_close)
+        if (overlayView != null) return
 
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
@@ -67,72 +56,37 @@ class PetAccessibilityService : AccessibilityService() {
             type,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
-        )
-
-        params.gravity = Gravity.TOP or Gravity.START
-        params.x = 100
-        params.y = 200
-
-        // 拖动逻辑
-        body.setOnTouchListener(object : View.OnTouchListener {
-            private var initialX = 0
-            private var initialY = 0
-            private var initialTouchX = 0f
-            private var initialTouchY = 0f
-            private var isDragging = false
-
-            override fun onTouch(v: View, event: MotionEvent): Boolean {
-                when (event.action) {
-                    MotionEvent.ACTION_DOWN -> {
-                        initialX = params.x
-                        initialY = params.y
-                        initialTouchX = event.rawX
-                        initialTouchY = event.rawY
-                        isDragging = false
-                        return true
-                    }
-                    MotionEvent.ACTION_MOVE -> {
-                        val deltaX = (event.rawX - initialTouchX).toInt()
-                        val deltaY = (event.rawY - initialTouchY).toInt()
-                        if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
-                            isDragging = true
-                        }
-                        if (isDragging) {
-                            params.x = initialX + deltaX
-                            params.y = initialY + deltaY
-                            windowManager.updateViewLayout(view, params)
-                        }
-                        return true
-                    }
-                    MotionEvent.ACTION_UP -> {
-                        if (!isDragging) {
-                            // 点击主体后续可接对话
-                        }
-                        return true
-                    }
-                }
-                return false
-            }
-        })
-
-        // 关闭按钮：只移除悬浮球，不停止服务
-        closeButton.setOnClickListener {
-            removePet()
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = 100
+            y = 200
         }
 
+        val view = OverlayView(this, windowManager, params)
         windowManager.addView(view, params)
-        petView = view
+        overlayView = view
         layoutParams = params
     }
 
-    /** 移除悬浮球 */
-    private fun removePet() {
-        petView?.let {
+    fun removePet() {
+        overlayView?.let {
             if (it.isAttachedToWindow) {
                 windowManager.removeView(it)
             }
         }
-        petView = null
+        overlayView = null
         layoutParams = null
+    }
+
+    // ServiceBridge 实现
+    override fun openMainApp() {
+        val intent = Intent(this, com.mascot.app.MainActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        startActivity(intent)
+    }
+
+    override fun removeOverlay() {
+        removePet()
     }
 }
