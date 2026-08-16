@@ -1,6 +1,7 @@
 package com.mascot.overlay
 
 import android.accessibilityservice.AccessibilityService
+import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
 import android.view.Gravity
@@ -14,12 +15,17 @@ import android.widget.TextView
 
 class PetAccessibilityService : AccessibilityService() {
 
+    companion object {
+        var instance: PetAccessibilityService? = null
+    }
+
     private lateinit var windowManager: WindowManager
     private var petView: View? = null
     private var layoutParams: WindowManager.LayoutParams? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        instance = this
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         showPet()
     }
@@ -34,10 +40,12 @@ class PetAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         removePet()
+        instance = null
         super.onDestroy()
     }
 
-    private fun showPet() {
+    /** 显示悬浮球，如果已显示则忽略 */
+    fun showPet() {
         if (petView != null) return
 
         val inflater = LayoutInflater.from(this)
@@ -65,7 +73,7 @@ class PetAccessibilityService : AccessibilityService() {
         params.x = 100
         params.y = 200
 
-        // 拖动逻辑：绑定在主体上
+        // 拖动逻辑
         body.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
@@ -98,7 +106,7 @@ class PetAccessibilityService : AccessibilityService() {
                     }
                     MotionEvent.ACTION_UP -> {
                         if (!isDragging) {
-                            // 点击主体暂时不处理，后续接对话
+                            // 点击主体后续可接对话
                         }
                         return true
                     }
@@ -107,10 +115,9 @@ class PetAccessibilityService : AccessibilityService() {
             }
         })
 
-        // 关闭按钮逻辑
+        // 关闭按钮：只移除悬浮球，不停止服务
         closeButton.setOnClickListener {
             removePet()
-            disableSelf()
         }
 
         windowManager.addView(view, params)
@@ -118,6 +125,7 @@ class PetAccessibilityService : AccessibilityService() {
         layoutParams = params
     }
 
+    /** 移除悬浮球 */
     private fun removePet() {
         petView?.let {
             if (it.isAttachedToWindow) {
