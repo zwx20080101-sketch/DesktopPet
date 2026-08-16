@@ -21,10 +21,5 @@ android {
 }
 
 dependencies {
-    implementation(project(":core"))
-    implementation(project(":ai-client"))
-    implementation(project(":memory"))
-    implementation(project(":animation-api"))
-    implementation(project(":animation-webp"))
     implementation("androidx.core:core-ktx:1.13.1")
 }

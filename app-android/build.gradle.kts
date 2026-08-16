@@ -32,6 +32,5 @@ android {
 }
 
 dependencies {
-    // 暂时只依赖 overlay-android，其他模块后面再加
     implementation(project(":overlay-android"))
 }
