@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Button
@@ -12,6 +11,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import com.mascot.overlay.PetAccessibilityService
 
 class MainActivity : Activity() {
 
@@ -39,6 +39,21 @@ class MainActivity : Activity() {
         }
         layout.addView(statusText)
 
+        // 显示悬浮球按钮
+        val showPetButton = Button(this).apply {
+            text = "显示悬浮球"
+            setOnClickListener {
+                val service = PetAccessibilityService.instance
+                if (service != null) {
+                    service.showPet()
+                    updateStatus()
+                } else {
+                    Toast.makeText(this@MainActivity, "服务未运行，请先开启无障碍服务", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        layout.addView(showPetButton)
+
         // 开启无障碍服务按钮
         val openAccessibilityButton = Button(this).apply {
             text = "1. 开启无障碍服务"
@@ -61,7 +76,6 @@ class MainActivity : Activity() {
                     val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
                     startActivity(intent)
                 } catch (e: Exception) {
-                    // 部分设备没有该界面，跳转应用详情
                     openAppDetails()
                 }
             }
