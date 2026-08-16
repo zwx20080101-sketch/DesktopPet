@@ -1,3 +1,4 @@
+import com.mascot.overlay.bridge.ServiceBridge
 package com.mascot.overlay
 
 import android.accessibilityservice.AccessibilityService
