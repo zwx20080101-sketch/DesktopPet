@@ -11,6 +11,7 @@ class GestureDetector(private val listener: GestureListener) {
         fun onDoubleTap()
         fun onLongPress()
         fun onDrag(dx: Int, dy: Int)
+        fun onDragEnd()
         fun onPinch(scale: Float)
     }
 
@@ -24,6 +25,7 @@ class GestureDetector(private val listener: GestureListener) {
     private var startDistance = 0f
     private var startScale = 1f
     private var longPressRunnable: Runnable? = null
+    private var lastTapTime = 0L
 
     fun onTouch(v: View, event: MotionEvent): Boolean {
         when (event.actionMasked) {
@@ -67,15 +69,10 @@ class GestureDetector(private val listener: GestureListener) {
                     isPinching = false
                 } else if (isDragging) {
                     isDragging = false
-                    // 拖动结束处理
                     listener.onDragEnd()
                 } else {
                     val time = System.currentTimeMillis() - downTime
                     if (time < 200) {
-                        // 单击
-                        listener.onSingleTap()
-                    } else {
-                        // 双击检测：简单的连续两次点击
                         if (lastTapTime > 0 && System.currentTimeMillis() - lastTapTime < 300) {
                             listener.onDoubleTap()
                             lastTapTime = 0
@@ -96,8 +93,6 @@ class GestureDetector(private val listener: GestureListener) {
         }
         return false
     }
-
-    private var lastTapTime = 0L
 
     private fun startLongPressCheck(v: View) {
         removeLongPressCheck()

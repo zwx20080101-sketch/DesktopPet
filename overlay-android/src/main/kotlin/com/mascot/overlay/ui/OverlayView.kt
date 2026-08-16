@@ -28,8 +28,8 @@ class OverlayView(
     private val roleManager = RoleManager()
     private var currentRole: Role = roleManager.currentRole
 
-    private val gestureDetector: GestureDetector
     private val actionExecutor: ActionExecutor
+    private val gestureDetector: GestureDetector
 
     private var scaleValue = 1f
 
@@ -68,35 +68,11 @@ class OverlayView(
             bridge?.removeOverlay()
         }
 
-        // 设置边缘待机条点击
         edgeDockView.setOnClickListener {
             unDockFromEdge()
         }
 
-        // 初始化手势检测器
-        gestureDetector = GestureDetector(object : GestureDetector.GestureListener {
-            override fun onSingleTap() {
-                actionExecutor.executeSingleTap()
-            }
-
-            override fun onDoubleTap() {
-                actionExecutor.executeDoubleTap()
-            }
-
-            override fun onLongPress() {
-                actionExecutor.executeLongPress()
-            }
-
-            override fun onDrag(dx: Int, dy: Int) {
-                actionExecutor.executeDrag(dx, dy)
-            }
-
-            override fun onPinch(scale: Float) {
-                actionExecutor.executePinch(scale)
-            }
-        })
-
-        // 初始化动作执行器
+        // 先初始化 actionExecutor
         actionExecutor = ActionExecutor(
             onDrag = { dx, dy ->
                 params.x += dx
@@ -108,7 +84,7 @@ class OverlayView(
                 snapToEdgeIfNeeded()
             },
             onPinch = { scale ->
-                scaleValue = scale.coerceIn(0.2f, 10f) // 最小0.2，最大10倍
+                scaleValue = scale.coerceIn(0.2f, 10f)
                 petView.scaleX = scaleValue
                 petView.scaleY = scaleValue
             },
@@ -126,6 +102,33 @@ class OverlayView(
                 else showControlMenu()
             }
         )
+
+        // 然后初始化 gestureDetector
+        gestureDetector = GestureDetector(object : GestureDetector.GestureListener {
+            override fun onSingleTap() {
+                actionExecutor.executeSingleTap()
+            }
+
+            override fun onDoubleTap() {
+                actionExecutor.executeDoubleTap()
+            }
+
+            override fun onLongPress() {
+                actionExecutor.executeLongPress()
+            }
+
+            override fun onDrag(dx: Int, dy: Int) {
+                actionExecutor.executeDrag(dx, dy)
+            }
+
+            override fun onDragEnd() {
+                actionExecutor.executeDragEnd()
+            }
+
+            override fun onPinch(scale: Float) {
+                actionExecutor.executePinch(scale)
+            }
+        })
 
         setOnTouchListener { v, event ->
             gestureDetector.onTouch(v, event)
@@ -223,7 +226,7 @@ class OverlayView(
             params.y = newY
             windowManager.updateViewLayout(this@OverlayView, params)
             edgeDockView.setVisible(true)
-            LockManager.state = com.mascot.overlay.lock.LockState.LOCKED
+            LockManager.setLocked(true)
             updateLockIndicator()
         } else {
             edgeDockView.setVisible(false)
@@ -250,7 +253,7 @@ class OverlayView(
 
         windowManager.updateViewLayout(this@OverlayView, params)
         edgeDockView.setVisible(false)
-        LockManager.state = com.mascot.overlay.lock.LockState.UNLOCKED
+        LockManager.setLocked(false)
         updateLockIndicator()
     }
 

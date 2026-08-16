@@ -8,5 +8,9 @@ object LockManager {
         state = if (state == LockState.LOCKED) LockState.UNLOCKED else LockState.LOCKED
     }
 
+    fun setLocked(locked: Boolean) {
+        state = if (locked) LockState.LOCKED else LockState.UNLOCKED
+    }
+
     fun isLocked(): Boolean = state == LockState.LOCKED
 }
