@@ -8,8 +8,6 @@ object BlueBallRole {
         name = "蓝球",
         avatar = "🔵",
         defaultScale = 1.0f,
-        minScale = 0.5f,
-        maxScale = 2.0f,
         reaction = JumpReaction()
     )
 }

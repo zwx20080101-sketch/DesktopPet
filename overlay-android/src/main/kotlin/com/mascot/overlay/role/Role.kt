@@ -7,7 +7,5 @@ data class Role(
     val name: String,
     val avatar: String,
     val defaultScale: Float,
-    val minScale: Float,
-    val maxScale: Float,
     val reaction: Reaction
 )

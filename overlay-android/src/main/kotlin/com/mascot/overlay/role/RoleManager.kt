@@ -1,15 +1,16 @@
 package com.mascot.overlay.role
 
-class RoleManager {
-    private val roles = listOf(DefaultRole.instance, BlueBallRole.instance)
-    var currentRole: Role = DefaultRole.instance
+data class Role(val id: String, val avatar: String, val name: String)
+
+object RoleManager {
+    val roles = listOf(
+        Role("cat", "🐾", "猫爪"),
+        Role("blue", "🔵", "蓝球")
+    )
+    var current: Role = roles[0]
         private set
 
-    fun getRoles(): List<Role> = roles
-
-    fun switchRole(roleId: String): Boolean {
-        val role = roles.find { it.id == roleId } ?: return false
-        currentRole = role
-        return true
+    fun switch(id: String) {
+        current = roles.find { it.id == id } ?: current
     }
 }

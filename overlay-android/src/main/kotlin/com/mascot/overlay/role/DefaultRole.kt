@@ -8,8 +8,6 @@ object DefaultRole {
         name = "默认猫爪",
         avatar = "🐾",
         defaultScale = 1.0f,
-        minScale = 0.5f,
-        maxScale = 2.0f,
         reaction = JumpReaction()
     )
 }
