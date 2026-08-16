@@ -13,6 +13,10 @@ class EdgeDockView(context: Context) : FrameLayout(context) {
         dockBar.setBackgroundColor(Color.GRAY)
         dockBar.alpha = 0.8f
         addView(dockBar, LayoutParams(dp(20), dp(50)))
+        setOnClickListener {
+            // 点击事件由 OverlayView 处理
+            performClick()
+        }
     }
 
     fun setVisible(visible: Boolean) {

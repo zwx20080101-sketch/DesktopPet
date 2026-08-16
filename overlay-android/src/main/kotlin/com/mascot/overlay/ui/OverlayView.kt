@@ -2,12 +2,13 @@ package com.mascot.overlay.ui
 
 import android.content.Context
 import android.view.Gravity
-import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.TextView
 import com.mascot.overlay.bridge.ServiceBridge
+import com.mascot.overlay.interaction.ActionExecutor
+import com.mascot.overlay.interaction.GestureDetector
 import com.mascot.overlay.lock.LockManager
 import com.mascot.overlay.role.Role
 import com.mascot.overlay.role.RoleManager
@@ -27,13 +28,10 @@ class OverlayView(
     private val roleManager = RoleManager()
     private var currentRole: Role = roleManager.currentRole
 
-    private var isDragging = false
-    private var isScaling = false
-    private var startDistance = 0f
-    private var startScale = 1f
-    private var startX = 0
-    private var startY = 0
-    private var touchDownTime = 0L
+    private val gestureDetector: GestureDetector
+    private val actionExecutor: ActionExecutor
+
+    private var scaleValue = 1f
 
     init {
         petView.text = currentRole.avatar
@@ -59,6 +57,7 @@ class OverlayView(
 
         controlMenuView.setOnLockToggleListener {
             LockManager.toggle()
+            updateLockIndicator()
             hideMenus()
         }
         controlMenuView.setOnSettingsListener {
@@ -69,103 +68,68 @@ class OverlayView(
             bridge?.removeOverlay()
         }
 
-        setOnTouchListener(createTouchListener())
-    }
-
-    private fun createTouchListener(): OnTouchListener {
-        return object : OnTouchListener {
-            override fun onTouch(v: View, event: MotionEvent): Boolean {
-                when (event.actionMasked) {
-                    MotionEvent.ACTION_DOWN -> {
-                        if (LockManager.isLocked()) {
-                            startLongPressCheck()
-                            return true
-                        }
-                        startX = params.x
-                        startY = params.y
-                        touchDownTime = System.currentTimeMillis()
-                        isDragging = false
-                        startLongPressCheck()
-                        return true
-                    }
-                    MotionEvent.ACTION_MOVE -> {
-                        if (LockManager.isLocked()) return true
-                        if (event.pointerCount == 1 && !isScaling) {
-                            val deltaX = event.rawX - startX
-                            val deltaY = event.rawY - startY
-                            if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
-                                isDragging = true
-                            }
-                            if (isDragging) {
-                                params.x = startX + deltaX.toInt()
-                                params.y = startY + deltaY.toInt()
-                                windowManager.updateViewLayout(this@OverlayView, params)
-                                checkEdgeDock(params.x, params.y)
-                            }
-                        } else if (event.pointerCount == 2) {
-                            if (!isScaling) {
-                                isScaling = true
-                                startDistance = distance(event)
-                                startScale = petView.scaleX
-                            }
-                            val newDistance = distance(event)
-                            val scale = (newDistance / startDistance * startScale).coerceIn(
-                                currentRole.minScale,
-                                currentRole.maxScale
-                            )
-                            petView.scaleX = scale
-                            petView.scaleY = scale
-                        }
-                        return true
-                    }
-                    MotionEvent.ACTION_UP -> {
-                        if (isScaling) {
-                            isScaling = false
-                        } else if (!isDragging) {
-                            if (System.currentTimeMillis() - touchDownTime < 300) {
-                                currentRole.reaction.execute(petView)
-                                if (menuView.visibility == VISIBLE) hideMenus()
-                                else showMenu()
-                            }
-                        } else {
-                            snapToEdgeIfNeeded()
-                        }
-                        isDragging = false
-                        removeLongPressCheck()
-                        return true
-                    }
-                    MotionEvent.ACTION_CANCEL -> {
-                        isDragging = false
-                        isScaling = false
-                        removeLongPressCheck()
-                        return true
-                    }
-                }
-                return false
-            }
+        // 设置边缘待机条点击
+        edgeDockView.setOnClickListener {
+            unDockFromEdge()
         }
-    }
 
-    private var longPressRunnable: Runnable? = null
-    private fun startLongPressCheck() {
-        removeLongPressCheck()
-        longPressRunnable = Runnable {
-            if (menuView.visibility != VISIBLE) {
-                showControlMenu()
+        // 初始化手势检测器
+        gestureDetector = GestureDetector(object : GestureDetector.GestureListener {
+            override fun onSingleTap() {
+                actionExecutor.executeSingleTap()
             }
+
+            override fun onDoubleTap() {
+                actionExecutor.executeDoubleTap()
+            }
+
+            override fun onLongPress() {
+                actionExecutor.executeLongPress()
+            }
+
+            override fun onDrag(dx: Int, dy: Int) {
+                actionExecutor.executeDrag(dx, dy)
+            }
+
+            override fun onPinch(scale: Float) {
+                actionExecutor.executePinch(scale)
+            }
+        })
+
+        // 初始化动作执行器
+        actionExecutor = ActionExecutor(
+            onDrag = { dx, dy ->
+                params.x += dx
+                params.y += dy
+                windowManager.updateViewLayout(this@OverlayView, params)
+                checkEdgeDock(params.x, params.y)
+            },
+            onDragEnd = {
+                snapToEdgeIfNeeded()
+            },
+            onPinch = { scale ->
+                scaleValue = scale.coerceIn(0.2f, 10f) // 最小0.2，最大10倍
+                petView.scaleX = scaleValue
+                petView.scaleY = scaleValue
+            },
+            onSingleTap = {
+                currentRole.reaction.execute(petView)
+                if (menuView.visibility == VISIBLE) hideMenus()
+                else if (controlMenuView.visibility == VISIBLE) hideMenus()
+            },
+            onDoubleTap = {
+                if (menuView.visibility == VISIBLE) hideMenus()
+                else showMenu()
+            },
+            onLongPress = {
+                if (controlMenuView.visibility == VISIBLE) hideMenus()
+                else showControlMenu()
+            }
+        )
+
+        setOnTouchListener { v, event ->
+            gestureDetector.onTouch(v, event)
         }
-        postDelayed(longPressRunnable, 500)
-    }
-
-    private fun removeLongPressCheck() {
-        longPressRunnable?.let { removeCallbacks(it) }
-        longPressRunnable = null
-    }
-
-    private fun distance(event: MotionEvent): Float {
-        val dx = event.getX(0) - event.getX(1)
-        val dy = event.getY(0) - event.getY(1)
-        return Math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
     }
 
     private fun switchRole(roleId: String) {
@@ -174,6 +138,7 @@ class OverlayView(
             petView.text = currentRole.avatar
             petView.scaleX = currentRole.defaultScale
             petView.scaleY = currentRole.defaultScale
+            scaleValue = currentRole.defaultScale
         }
     }
 
@@ -200,10 +165,19 @@ class OverlayView(
         controlMenuView.hide()
     }
 
+    private fun updateLockIndicator() {
+        if (LockManager.isLocked()) {
+            petView.alpha = 0.6f
+        } else {
+            petView.alpha = 1.0f
+        }
+    }
+
     private fun checkEdgeDock(x: Int, y: Int) {
         val screenWidth = ScreenUtils.getScreenWidth(context)
         val screenHeight = ScreenUtils.getScreenHeight(context)
-        val edgeThreshold = dp(20)
+        val edgeThreshold = dp(30)
+
         val closeToLeft = x < edgeThreshold
         val closeToRight = x > screenWidth - petView.width - edgeThreshold
         val closeToTop = y < edgeThreshold
@@ -211,6 +185,7 @@ class OverlayView(
 
         if (closeToLeft || closeToRight || closeToTop || closeToBottom) {
             edgeDockView.setVisible(true)
+            edgeDockView.setTag("dock")
         } else {
             edgeDockView.setVisible(false)
         }
@@ -219,38 +194,64 @@ class OverlayView(
     private fun snapToEdgeIfNeeded() {
         val screenWidth = ScreenUtils.getScreenWidth(context)
         val screenHeight = ScreenUtils.getScreenHeight(context)
-        val edgeThreshold = dp(20)
+        val edgeThreshold = dp(30)
         val x = params.x
         val y = params.y
 
         var newX = x
         var newY = y
-        var snapped = false
+        var docked = false
 
         if (x < edgeThreshold) {
             newX = 0
-            snapped = true
+            docked = true
         } else if (x > screenWidth - petView.width - edgeThreshold) {
             newX = screenWidth - petView.width
-            snapped = true
+            docked = true
         }
 
         if (y < edgeThreshold) {
             newY = 0
-            snapped = true
+            docked = true
         } else if (y > screenHeight - petView.height - edgeThreshold) {
             newY = screenHeight - petView.height
-            snapped = true
+            docked = true
         }
 
-        if (snapped) {
+        if (docked) {
             params.x = newX
             params.y = newY
             windowManager.updateViewLayout(this@OverlayView, params)
             edgeDockView.setVisible(true)
+            LockManager.state = com.mascot.overlay.lock.LockState.LOCKED
+            updateLockIndicator()
         } else {
             edgeDockView.setVisible(false)
         }
+    }
+
+    private fun unDockFromEdge() {
+        val screenWidth = ScreenUtils.getScreenWidth(context)
+        val screenHeight = ScreenUtils.getScreenHeight(context)
+        val petWidth = petView.width
+        val petHeight = petView.height
+
+        if (params.x == 0) {
+            params.x = dp(20)
+        } else if (params.x == screenWidth - petWidth) {
+            params.x = screenWidth - petWidth - dp(20)
+        }
+
+        if (params.y == 0) {
+            params.y = dp(20)
+        } else if (params.y == screenHeight - petHeight) {
+            params.y = screenHeight - petHeight - dp(20)
+        }
+
+        windowManager.updateViewLayout(this@OverlayView, params)
+        edgeDockView.setVisible(false)
+        LockManager.state = com.mascot.overlay.lock.LockState.UNLOCKED
+        updateLockIndicator()
     }
 
     private fun dp(value: Int): Int {

@@ -6,8 +6,10 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import android.os.PowerManager
+import android.provider.Settings
+import android.view.View
+import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -19,38 +21,25 @@ class MainActivity : Activity() {
 
     private lateinit var statusText: TextView
     private lateinit var prefs: android.content.SharedPreferences
+    private lateinit var mainLayout: LinearLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
 
         val scrollView = ScrollView(this)
-        val layout = LinearLayout(this).apply {
+        mainLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(60, 100, 60, 100)
         }
-
-        val title = TextView(this).apply {
-            text = "桌面萌宠"
-            textSize = 30f
-        }
-        layout.addView(title)
-
-        statusText = TextView(this).apply {
-            text = "正在检查权限..."
-            textSize = 16f
-            setPadding(0, 40, 0, 0)
-        }
-        layout.addView(statusText)
-
-        statusText.setOnClickListener {
-            startAutoGuide()
-        }
-
-        scrollView.addView(layout)
+        scrollView.addView(mainLayout)
         setContentView(scrollView)
 
-        // 设置服务桥接
+        setupBridge()
+        showGuideOrStatus()
+    }
+
+    private fun setupBridge() {
         PetAccessibilityService.instance?.bridge = object : ServiceBridge {
             override fun openMainApp() {
                 val intent = Intent(this@MainActivity, MainActivity::class.java)
@@ -62,64 +51,86 @@ class MainActivity : Activity() {
                 PetAccessibilityService.instance?.removePet()
             }
         }
-
-        startAutoGuide()
     }
 
-    override fun onResume() {
-        super.onResume()
-        startAutoGuide()
-    }
+    private fun showGuideOrStatus() {
+        mainLayout.removeAllViews()
 
-    private fun startAutoGuide() {
-        if (prefs.getBoolean("guide_done", false)) {
-            updateStatusAndShowPet()
-            return
-        }
-
-        if (!isAccessibilityServiceEnabled(this)) {
-            statusText.text = "请开启无障碍服务"
-            openAccessibilitySettings()
-            return
-        }
-
-        if (!isIgnoringBatteryOptimizations()) {
-            statusText.text = "请允许忽略电池优化"
-            requestIgnoreBatteryOptimizations()
-            return
-        }
-
-        if (!prefs.getBoolean("app_details_opened", false)) {
-            prefs.edit().putBoolean("app_details_opened", true).apply()
-            statusText.text = "请允许自启动和后台弹出"
-            openAppDetails()
-            return
-        }
-
-        prefs.edit().putBoolean("guide_done", true).apply()
-        updateStatusAndShowPet()
-    }
-
-    private fun updateStatusAndShowPet() {
-        val enabled = isAccessibilityServiceEnabled(this)
-        if (enabled) {
-            statusText.text = "✅ 全部就绪，悬浮球已显示"
-            val service = PetAccessibilityService.instance
-            if (service != null) {
-                service.showPet()
-            } else {
-                Toast.makeText(this, "服务连接中，请稍候", Toast.LENGTH_SHORT).show()
-            }
+        if (!isAccessibilityServiceEnabled(this) || !isIgnoringBatteryOptimizations() || !prefs.getBoolean("app_details_opened", false)) {
+            showGuidePage()
         } else {
-            statusText.text = "❌ 无障碍服务未开启，点击此处重新引导"
+            showReadyPage()
         }
     }
 
-    private fun openAccessibilitySettings() {
-        try {
-            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-        } catch (e: Exception) {
-            Toast.makeText(this, "无法打开设置", Toast.LENGTH_SHORT).show()
+    private fun showGuidePage() {
+        val title = TextView(this).apply {
+            text = "欢迎使用桌面萌宠"
+            textSize = 28f
+        }
+        mainLayout.addView(title)
+
+        val desc = TextView(this).apply {
+            text = "为了正常运行，需要完成以下设置：\n\n1. 开启无障碍服务\n2. 允许忽略电池优化\n3. 允许自启动/后台弹出\n\n请按顺序操作。"
+            textSize = 16f
+            setPadding(0, 30, 0, 30)
+        }
+        mainLayout.addView(desc)
+
+        val startButton = Button(this).apply {
+            text = "开始设置"
+            setOnClickListener {
+                startNextStep()
+            }
+        }
+        mainLayout.addView(startButton)
+    }
+
+    private fun showReadyPage() {
+        val title = TextView(this).apply {
+            text = "✅ 全部就绪"
+            textSize = 28f
+        }
+        mainLayout.addView(title)
+
+        val status = TextView(this).apply {
+            text = "悬浮球已准备就绪"
+            textSize = 16f
+            setPadding(0, 30, 0, 30)
+        }
+        mainLayout.addView(status)
+
+        val showButton = Button(this).apply {
+            text = "显示悬浮球"
+            setOnClickListener {
+                val service = PetAccessibilityService.instance
+                if (service != null) {
+                    service.showPet()
+                } else {
+                    Toast.makeText(this@MainActivity, "服务未连接，请重新开启无障碍服务", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        mainLayout.addView(showButton)
+    }
+
+    private fun startNextStep() {
+        when {
+            !isAccessibilityServiceEnabled(this) -> {
+                Toast.makeText(this, "请开启无障碍服务", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }
+            !isIgnoringBatteryOptimizations() -> {
+                requestIgnoreBatteryOptimizations()
+            }
+            !prefs.getBoolean("app_details_opened", false) -> {
+                prefs.edit().putBoolean("app_details_opened", true).apply()
+                Toast.makeText(this, "请在应用详情中允许自启动和后台弹出", Toast.LENGTH_SHORT).show()
+                openAppDetails()
+            }
+            else -> {
+                showReadyPage()
+            }
         }
     }
 
@@ -168,5 +179,11 @@ class MainActivity : Activity() {
             Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
         )
         return enabledServices?.contains(context.packageName) == true
+    }
+
+    override fun onResume() {
+        super.onResume()
+        setupBridge()
+        showGuideOrStatus()
     }
 }

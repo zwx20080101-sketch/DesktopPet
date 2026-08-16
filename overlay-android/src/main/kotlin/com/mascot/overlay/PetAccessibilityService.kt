@@ -1,7 +1,6 @@
 package com.mascot.overlay
 
 import android.accessibilityservice.AccessibilityService
-import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
 import android.view.Gravity
@@ -20,7 +19,6 @@ class PetAccessibilityService : AccessibilityService() {
     private var overlayView: OverlayView? = null
     private var layoutParams: WindowManager.LayoutParams? = null
 
-    // 由 app 模块设置的桥接，用于打开主界面或移除悬浮窗
     var bridge: ServiceBridge? = null
 
     override fun onServiceConnected() {
@@ -66,7 +64,6 @@ class PetAccessibilityService : AccessibilityService() {
             y = 200
         }
 
-        // 传入 bridge，OverlayView 会调用它
         val view = OverlayView(this, windowManager, params, bridge)
         windowManager.addView(view, params)
         overlayView = view
