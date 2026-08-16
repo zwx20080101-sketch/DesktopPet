@@ -3,117 +3,140 @@ package com.mascot.app
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import com.mascot.overlay.PetAccessibilityService
+import android.os.PowerManager
 
 class MainActivity : Activity() {
 
     private lateinit var statusText: TextView
+    private lateinit var prefs: SharedPreferences
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
 
+        // 构建简洁状态页
         val scrollView = ScrollView(this)
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(50, 80, 50, 80)
+            setPadding(60, 100, 60, 100)
         }
 
         val title = TextView(this).apply {
             text = "桌面萌宠"
-            textSize = 28f
+            textSize = 30f
         }
         layout.addView(title)
 
         statusText = TextView(this).apply {
-            text = "检测中..."
+            text = "正在检查权限..."
             textSize = 16f
-            setPadding(0, 30, 0, 20)
+            setPadding(0, 40, 0, 0)
         }
         layout.addView(statusText)
 
-        // 显示悬浮球按钮
-        val showPetButton = Button(this).apply {
-            text = "显示悬浮球"
-            setOnClickListener {
-                val service = PetAccessibilityService.instance
-                if (service != null) {
-                    service.showPet()
-                    updateStatus()
-                } else {
-                    Toast.makeText(this@MainActivity, "服务未运行，请先开启无障碍服务", Toast.LENGTH_SHORT).show()
-                }
-            }
+        // 点击状态文字可手动重新检查
+        statusText.setOnClickListener {
+            startAutoGuide()
         }
-        layout.addView(showPetButton)
-
-        // 开启无障碍服务按钮
-        val openAccessibilityButton = Button(this).apply {
-            text = "1. 开启无障碍服务"
-            setOnClickListener {
-                try {
-                    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    Toast.makeText(this@MainActivity, "无法打开设置", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-        layout.addView(openAccessibilityButton)
-
-        // 电池优化设置按钮
-        val batteryButton = Button(this).apply {
-            text = "2. 电池优化设为不限制"
-            setOnClickListener {
-                try {
-                    val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    openAppDetails()
-                }
-            }
-        }
-        layout.addView(batteryButton)
-
-        // 应用详情/自启动按钮
-        val appDetailsButton = Button(this).apply {
-            text = "3. 允许自启动/后台弹出"
-            setOnClickListener {
-                openAppDetails()
-            }
-        }
-        layout.addView(appDetailsButton)
-
-        // 使用说明
-        val hint = TextView(this).apply {
-            text = "\n设置完成后，请按 Home 键回到桌面。\n如果悬浮球未显示，请重新打开本应用并点击“显示悬浮球”。"
-            textSize = 14f
-            setPadding(0, 30, 0, 0)
-        }
-        layout.addView(hint)
 
         scrollView.addView(layout)
         setContentView(scrollView)
+
+        // 启动自动引导
+        startAutoGuide()
     }
 
     override fun onResume() {
         super.onResume()
-        updateStatus()
+        // 从系统设置返回后，继续自动引导
+        startAutoGuide()
     }
 
-    private fun updateStatus() {
+    private fun startAutoGuide() {
+        // 如果已经完成引导，只更新状态并尝试显示悬浮球
+        if (prefs.getBoolean("guide_done", false)) {
+            updateStatusAndShowPet()
+            return
+        }
+
+        // 第一步：检查无障碍服务
+        if (!isAccessibilityServiceEnabled(this)) {
+            statusText.text = "请开启无障碍服务"
+            openAccessibilitySettings()
+            return
+        }
+
+        // 第二步：检查电池优化
+        if (!isIgnoringBatteryOptimizations()) {
+            statusText.text = "请允许忽略电池优化"
+            requestIgnoreBatteryOptimizations()
+            return
+        }
+
+        // 第三步：引导自启动/后台弹出（只跳转一次）
+        if (!prefs.getBoolean("app_details_opened", false)) {
+            prefs.edit().putBoolean("app_details_opened", true).apply()
+            statusText.text = "请允许自启动和后台弹出"
+            openAppDetails()
+            return
+        }
+
+        // 全部完成
+        prefs.edit().putBoolean("guide_done", true).apply()
+        updateStatusAndShowPet()
+    }
+
+    private fun updateStatusAndShowPet() {
         val enabled = isAccessibilityServiceEnabled(this)
         if (enabled) {
-            statusText.text = "✅ 无障碍服务已开启"
+            statusText.text = "✅ 全部就绪，悬浮球已显示"
+            val service = PetAccessibilityService.instance
+            if (service != null) {
+                service.showPet()
+            } else {
+                // 服务可能还没连接，稍后会自动显示
+                Toast.makeText(this, "服务连接中，请稍候", Toast.LENGTH_SHORT).show()
+            }
         } else {
-            statusText.text = "❌ 无障碍服务未开启，请点击下方按钮开启"
+            statusText.text = "❌ 无障碍服务未开启，点击此处重新引导"
+        }
+    }
+
+    private fun openAccessibilitySettings() {
+        try {
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        } catch (e: Exception) {
+            Toast.makeText(this, "无法打开设置", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun requestIgnoreBatteryOptimizations() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+            if (!powerManager.isIgnoringBatteryOptimizations(packageName)) {
+                try {
+                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                    intent.data = Uri.parse("package:$packageName")
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    // 部分设备没有该对话框，跳转电池优化列表
+                    try {
+                        startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                    } catch (e2: Exception) {
+                        openAppDetails()
+                    }
+                }
+            }
         }
     }
 
@@ -127,6 +150,14 @@ class MainActivity : Activity() {
         } catch (e: Exception) {
             Toast.makeText(this, "请手动进入系统设置", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun isIgnoringBatteryOptimizations(): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+            return powerManager.isIgnoringBatteryOptimizations(packageName)
+        }
+        return true
     }
 
     private fun isAccessibilityServiceEnabled(context: Context): Boolean {
