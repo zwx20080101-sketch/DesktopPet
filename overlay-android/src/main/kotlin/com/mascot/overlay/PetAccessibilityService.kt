@@ -9,6 +9,8 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
+import android.widget.Button
+import android.widget.TextView
 
 class PetAccessibilityService : AccessibilityService() {
 
@@ -41,6 +43,9 @@ class PetAccessibilityService : AccessibilityService() {
         val inflater = LayoutInflater.from(this)
         val view = inflater.inflate(R.layout.overlay_pet, null)
 
+        val body = view.findViewById<TextView>(R.id.overlay_body)
+        val closeButton = view.findViewById<Button>(R.id.overlay_close)
+
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
         } else {
@@ -60,8 +65,8 @@ class PetAccessibilityService : AccessibilityService() {
         params.x = 100
         params.y = 200
 
-        // 设置触摸监听，实现拖动
-        view.setOnTouchListener(object : View.OnTouchListener {
+        // 拖动逻辑：绑定在主体上
+        body.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
             private var initialTouchX = 0f
@@ -93,7 +98,7 @@ class PetAccessibilityService : AccessibilityService() {
                     }
                     MotionEvent.ACTION_UP -> {
                         if (!isDragging) {
-                            // 这里可以处理点击事件，后续接入对话
+                            // 点击主体暂时不处理，后续接对话
                         }
                         return true
                     }
@@ -101,6 +106,12 @@ class PetAccessibilityService : AccessibilityService() {
                 return false
             }
         })
+
+        // 关闭按钮逻辑
+        closeButton.setOnClickListener {
+            removePet()
+            disableSelf()
+        }
 
         windowManager.addView(view, params)
         petView = view
