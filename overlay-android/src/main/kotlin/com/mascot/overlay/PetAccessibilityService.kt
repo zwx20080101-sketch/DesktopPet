@@ -1,7 +1,7 @@
-import com.mascot.overlay.bridge.ServiceBridge
 package com.mascot.overlay
 
 import android.accessibilityservice.AccessibilityService
+import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
 import android.view.Gravity
@@ -10,7 +10,7 @@ import android.view.accessibility.AccessibilityEvent
 import com.mascot.overlay.bridge.ServiceBridge
 import com.mascot.overlay.ui.OverlayView
 
-class PetAccessibilityService : AccessibilityService(), ServiceBridge {
+class PetAccessibilityService : AccessibilityService() {
 
     companion object {
         var instance: PetAccessibilityService? = null
@@ -19,6 +19,9 @@ class PetAccessibilityService : AccessibilityService(), ServiceBridge {
     private lateinit var windowManager: WindowManager
     private var overlayView: OverlayView? = null
     private var layoutParams: WindowManager.LayoutParams? = null
+
+    // 由 app 模块设置的桥接，用于打开主界面或移除悬浮窗
+    var bridge: ServiceBridge? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -63,7 +66,8 @@ class PetAccessibilityService : AccessibilityService(), ServiceBridge {
             y = 200
         }
 
-        val view = OverlayView(this, windowManager, params)
+        // 传入 bridge，OverlayView 会调用它
+        val view = OverlayView(this, windowManager, params, bridge)
         windowManager.addView(view, params)
         overlayView = view
         layoutParams = params
@@ -77,17 +81,5 @@ class PetAccessibilityService : AccessibilityService(), ServiceBridge {
         }
         overlayView = null
         layoutParams = null
-    }
-
-    // ServiceBridge 实现
-    override fun openMainApp() {
-        val intent = Intent(this, com.mascot.app.MainActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        startActivity(intent)
-    }
-
-    override fun removeOverlay() {
-        removePet()
     }
 }

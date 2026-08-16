@@ -3,28 +3,27 @@ package com.mascot.app
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.os.PowerManager
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import com.mascot.overlay.PetAccessibilityService
-import android.os.PowerManager
+import com.mascot.overlay.bridge.ServiceBridge
 
 class MainActivity : Activity() {
 
     private lateinit var statusText: TextView
-    private lateinit var prefs: SharedPreferences
+    private lateinit var prefs: android.content.SharedPreferences
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
 
-        // 构建简洁状态页
         val scrollView = ScrollView(this)
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -44,7 +43,6 @@ class MainActivity : Activity() {
         }
         layout.addView(statusText)
 
-        // 点击状态文字可手动重新检查
         statusText.setOnClickListener {
             startAutoGuide()
         }
@@ -52,38 +50,45 @@ class MainActivity : Activity() {
         scrollView.addView(layout)
         setContentView(scrollView)
 
-        // 启动自动引导
+        // 设置服务桥接
+        PetAccessibilityService.instance?.bridge = object : ServiceBridge {
+            override fun openMainApp() {
+                val intent = Intent(this@MainActivity, MainActivity::class.java)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                startActivity(intent)
+            }
+
+            override fun removeOverlay() {
+                PetAccessibilityService.instance?.removePet()
+            }
+        }
+
         startAutoGuide()
     }
 
     override fun onResume() {
         super.onResume()
-        // 从系统设置返回后，继续自动引导
         startAutoGuide()
     }
 
     private fun startAutoGuide() {
-        // 如果已经完成引导，只更新状态并尝试显示悬浮球
         if (prefs.getBoolean("guide_done", false)) {
             updateStatusAndShowPet()
             return
         }
 
-        // 第一步：检查无障碍服务
         if (!isAccessibilityServiceEnabled(this)) {
             statusText.text = "请开启无障碍服务"
             openAccessibilitySettings()
             return
         }
 
-        // 第二步：检查电池优化
         if (!isIgnoringBatteryOptimizations()) {
             statusText.text = "请允许忽略电池优化"
             requestIgnoreBatteryOptimizations()
             return
         }
 
-        // 第三步：引导自启动/后台弹出（只跳转一次）
         if (!prefs.getBoolean("app_details_opened", false)) {
             prefs.edit().putBoolean("app_details_opened", true).apply()
             statusText.text = "请允许自启动和后台弹出"
@@ -91,7 +96,6 @@ class MainActivity : Activity() {
             return
         }
 
-        // 全部完成
         prefs.edit().putBoolean("guide_done", true).apply()
         updateStatusAndShowPet()
     }
@@ -104,7 +108,6 @@ class MainActivity : Activity() {
             if (service != null) {
                 service.showPet()
             } else {
-                // 服务可能还没连接，稍后会自动显示
                 Toast.makeText(this, "服务连接中，请稍候", Toast.LENGTH_SHORT).show()
             }
         } else {
@@ -129,7 +132,6 @@ class MainActivity : Activity() {
                     intent.data = Uri.parse("package:$packageName")
                     startActivity(intent)
                 } catch (e: Exception) {
-                    // 部分设备没有该对话框，跳转电池优化列表
                     try {
                         startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
                     } catch (e2: Exception) {

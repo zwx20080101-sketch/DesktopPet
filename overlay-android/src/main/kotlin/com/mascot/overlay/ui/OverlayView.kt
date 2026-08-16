@@ -1,4 +1,3 @@
-import com.mascot.overlay.bridge.ServiceBridge
 package com.mascot.overlay.ui
 
 import android.content.Context
@@ -8,6 +7,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.TextView
+import com.mascot.overlay.bridge.ServiceBridge
 import com.mascot.overlay.lock.LockManager
 import com.mascot.overlay.role.Role
 import com.mascot.overlay.role.RoleManager
@@ -16,7 +16,8 @@ import com.mascot.overlay.util.ScreenUtils
 class OverlayView(
     context: Context,
     private val windowManager: WindowManager,
-    private val params: WindowManager.LayoutParams
+    private val params: WindowManager.LayoutParams,
+    private val bridge: ServiceBridge?
 ) : FrameLayout(context) {
 
     private val petView: TextView = TextView(context)
@@ -61,12 +62,11 @@ class OverlayView(
             hideMenus()
         }
         controlMenuView.setOnSettingsListener {
-            // 通过桥接接口打开主界面
-            (context as? ServiceBridge)?.openMainApp()
+            bridge?.openMainApp()
             hideMenus()
         }
         controlMenuView.setOnCloseListener {
-            (context as? ServiceBridge)?.removeOverlay()
+            bridge?.removeOverlay()
         }
 
         setOnTouchListener(createTouchListener())
