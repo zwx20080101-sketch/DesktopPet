@@ -36,6 +36,7 @@ class OverlayView(
     private var scaleValue = 1f
     private val baseWidth = 120.dp
     private val baseHeight = 120.dp
+    private var isDocked = false
 
     init {
         addView(petView.getView(), LayoutParams(baseWidth, baseHeight))
@@ -68,39 +69,54 @@ class OverlayView(
 
         actionExecutor = ActionExecutor(
             onDrag = { dx, dy ->
-                params.x += dx
-                params.y += dy
-                wm.updateViewLayout(this, params)
+                if (!isDocked && !LockManager.isLocked()) {
+                    params.x += dx
+                    params.y += dy
+                    wm.updateViewLayout(this, params)
+                }
             },
             onDragEnd = {
-                val sw = ScreenUtils.getScreenWidth(ctx)
-                val sh = ScreenUtils.getScreenHeight(ctx)
-                val outOfBounds =
-                    params.x < 0 ||
-                    params.x > sw - params.width ||
-                    params.y < 0 ||
-                    params.y > sh - params.height
-                if (outOfBounds) {
-                    onRequestDock()
+                if (!isDocked && !LockManager.isLocked()) {
+                    val sw = ScreenUtils.getScreenWidth(ctx)
+                    val sh = ScreenUtils.getScreenHeight(ctx)
+                    val nearEdge =
+                        params.x < 20.dp ||
+                        params.x > sw - params.width - 20.dp ||
+                        params.y < 20.dp ||
+                        params.y > sh - params.height - 20.dp
+                    if (nearEdge) {
+                        dockToEdge()
+                    }
                 }
             },
             onPinch = { scale ->
-                val newScale = scale.coerceIn(0.5f, 3.0f)
-                scaleValue = newScale
-                params.width = (baseWidth * newScale).toInt()
-                params.height = (baseHeight * newScale).toInt()
-                wm.updateViewLayout(this, params)
-                petView.setScale(1f)
+                if (!isDocked && !LockManager.isLocked()) {
+                    val newScale = scale.coerceIn(0.5f, 3.0f)
+                    scaleValue = newScale
+                    params.width = (baseWidth * newScale).toInt()
+                    params.height = (baseHeight * newScale).toInt()
+                    wm.updateViewLayout(this, params)
+                    petView.setScale(1f)
+                }
             },
             onSingleTap = {
-                (petView as SpritePetView).playState("jump")
-                hideMenusIfVisible()
+                if (isDocked) {
+                    // 点击边缘停靠宠物，唤醒并解锁
+                    undock()
+                } else if (!LockManager.isLocked()) {
+                    (petView as SpritePetView).playState("jump")
+                    hideMenusIfVisible()
+                }
             },
             onDoubleTap = {
-                if (menuView.isVisible()) menuView.hide() else showMenu()
+                if (!isDocked && !LockManager.isLocked()) {
+                    if (menuView.isVisible()) menuView.hide() else showMenu()
+                }
             },
             onLongPress = {
-                if (controlMenuView.isVisible()) controlMenuView.hide() else showControlMenu()
+                if (!isDocked && !LockManager.isLocked()) {
+                    if (controlMenuView.isVisible()) controlMenuView.hide() else showControlMenu()
+                }
             }
         )
 
@@ -114,6 +130,30 @@ class OverlayView(
         })
 
         setOnTouchListener { _, event -> gestureDetector.onTouch(this, event) }
+    }
+
+    private fun dockToEdge() {
+        val sw = ScreenUtils.getScreenWidth(ctx)
+        val sh = ScreenUtils.getScreenHeight(ctx)
+        // 将宠物吸附到最近边缘，完全在屏幕内
+        when {
+            params.x < 20.dp -> params.x = 0
+            params.x > sw - params.width - 20.dp -> params.x = sw - params.width
+            params.y < 20.dp -> params.y = 0
+            params.y > sh - params.height - 20.dp -> params.y = sh - params.height
+        }
+        wm.updateViewLayout(this, params)
+        isDocked = true
+        LockManager.setLocked(true)
+        petView.setLocked(true)
+        (petView as SpritePetView).playState("sleep")
+    }
+
+    private fun undock() {
+        isDocked = false
+        LockManager.setLocked(false)
+        petView.setLocked(false)
+        (petView as SpritePetView).playState("idle")
     }
 
     fun setLocked(locked: Boolean) {

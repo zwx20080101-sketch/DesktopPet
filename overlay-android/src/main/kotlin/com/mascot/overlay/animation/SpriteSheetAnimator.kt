@@ -5,7 +5,10 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Rect
+import android.os.Handler
+import android.os.Looper
 import android.view.View
+import kotlin.math.max
 
 class SpriteSheetAnimator(
     context: Context,
@@ -20,8 +23,10 @@ class SpriteSheetAnimator(
     private val frames = mutableListOf<Bitmap>()
     private var currentRow = 0
     private var currentFrame = 0
-    private var isPlaying = false
+    private var playing = false
     private var view: View? = null
+    private val handler = Handler(Looper.getMainLooper())
+    private var animationRunnable: Runnable? = null
 
     init {
         for (r in 0 until rows) {
@@ -38,36 +43,48 @@ class SpriteSheetAnimator(
     }
 
     fun playRow(row: Int, loop: Boolean = true) {
+        stopAnimation()
         currentRow = row
         currentFrame = row * cols
-        isPlaying = true
+        playing = true
         updateView()
         startAnimation(loop)
     }
 
     private fun startAnimation(loop: Boolean) {
-        val handler = android.os.Handler(android.os.Looper.getMainLooper())
         val runnable = object : Runnable {
             override fun run() {
-                if (!isPlaying) return
+                if (!playing) return
                 currentFrame++
                 if (currentFrame >= (currentRow + 1) * cols) {
-                    currentFrame = currentRow * cols
+                    if (loop) {
+                        currentFrame = currentRow * cols
+                    } else {
+                        stopAnimation()
+                        return
+                    }
                 }
                 updateView()
                 handler.postDelayed(this, (1000 / targetFps).toLong())
             }
         }
+        animationRunnable = runnable
         handler.postDelayed(runnable, (1000 / targetFps).toLong())
+    }
+
+    private fun stopAnimation() {
+        playing = false
+        animationRunnable?.let { handler.removeCallbacks(it) }
+        animationRunnable = null
     }
 
     private fun updateView() {
         view?.invalidate()
     }
 
-    fun draw(canvas: Canvas) {
+    fun draw(canvas: Canvas, targetRect: Rect) {
         if (currentFrame < frames.size) {
-            canvas.drawBitmap(frames[currentFrame], null, Rect(0, 0, frameWidth, frameHeight), null)
+            canvas.drawBitmap(frames[currentFrame], null, targetRect, null)
         }
     }
 

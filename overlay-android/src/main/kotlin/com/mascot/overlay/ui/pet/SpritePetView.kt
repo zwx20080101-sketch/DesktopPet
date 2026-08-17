@@ -3,6 +3,7 @@ package com.mascot.overlay.ui.pet
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Rect
 import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
@@ -16,7 +17,7 @@ class SpritePetView(val context: Context) : PetView {
     }
     private val canvasView = object : View(context) {
         override fun onDraw(canvas: Canvas) {
-            animator.draw(canvas)
+            animator.draw(canvas, Rect(0, 0, width, height))
         }
     }
     private val lockIndicator = TextView(context).apply {
@@ -38,13 +39,13 @@ class SpritePetView(val context: Context) : PetView {
             Gravity.TOP or Gravity.END
         ))
         animator.attach(canvasView)
-        animator.playRow(0) // 默认待机
+        animator.playRow(0, true)
     }
 
     override fun getView(): View = container
 
     override fun setRole(role: Role) {
-        // 后续根据角色切换不同精灵图，现在共用一张
+        // 以后根据不同角色加载不同精灵图
     }
 
     override fun setScale(scale: Float) {
@@ -59,11 +60,11 @@ class SpritePetView(val context: Context) : PetView {
 
     fun playState(state: String) {
         when (state) {
-            "idle" -> animator.playRow(0)
-            "walk" -> animator.playRow(1)
-            "jump" -> animator.playRow(2, loop = false)
-            "sleep" -> animator.playRow(3)
-            else -> animator.playRow(0)
+            "idle" -> animator.playRow(0, true)
+            "walk" -> animator.playRow(1, true)
+            "jump" -> animator.playRow(2, false)
+            "sleep" -> animator.playRow(3, true)
+            else -> animator.playRow(0, true)
         }
     }
 }

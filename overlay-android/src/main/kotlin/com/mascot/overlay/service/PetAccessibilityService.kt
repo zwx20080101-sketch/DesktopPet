@@ -7,11 +7,7 @@ import android.view.Gravity
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import com.mascot.overlay.bridge.ServiceBridge
-import com.mascot.overlay.lock.LockManager
 import com.mascot.overlay.ui.OverlayView
-import com.mascot.overlay.ui.edge.DefaultEdgeDockView
-import com.mascot.overlay.ui.edge.EdgeDockView
-import com.mascot.overlay.util.ScreenUtils
 
 class PetAccessibilityService : AccessibilityService() {
 
@@ -21,8 +17,6 @@ class PetAccessibilityService : AccessibilityService() {
 
     private lateinit var wm: WindowManager
     private var overlay: OverlayView? = null
-    private var overlayParams: WindowManager.LayoutParams? = null
-    private var edgeDockView: EdgeDockView? = null
 
     var bridge: ServiceBridge? = null
 
@@ -67,12 +61,11 @@ class PetAccessibilityService : AccessibilityService() {
             wm = wm,
             params = params,
             bridge = bridge,
-            onRequestDock = { dockOverlay() }
+            onRequestDock = {}
         )
 
         wm.addView(view, params)
         overlay = view
-        overlayParams = params
     }
 
     fun removePet() {
@@ -82,106 +75,6 @@ class PetAccessibilityService : AccessibilityService() {
             }
         }
         overlay = null
-        overlayParams = null
-        removeEdgeDock()
-    }
-
-    private fun dockOverlay() {
-        val params = overlayParams ?: return
-        val sw = ScreenUtils.getScreenWidth(this)
-        val sh = ScreenUtils.getScreenHeight(this)
-        val edgeBarSize = 20.dp
-
-        var docked = false
-        if (params.x < 0) {
-            params.x = -params.width + edgeBarSize
-            docked = true
-        } else if (params.x > sw - params.width) {
-            params.x = sw - edgeBarSize
-            docked = true
-        }
-
-        if (params.y < 0) {
-            params.y = -params.height + edgeBarSize
-            docked = true
-        } else if (params.y > sh - params.height) {
-            params.y = sh - edgeBarSize
-            docked = true
-        }
-
-        if (docked) {
-            overlay?.let { wm.updateViewLayout(it, params) }
-            showEdgeDock(params)
-            LockManager.setLocked(true)
-            overlay?.setLocked(true)
-        }
-    }
-
-    private fun showEdgeDock(params: WindowManager.LayoutParams) {
-        removeEdgeDock()
-
-        val dock = DefaultEdgeDockView(this)
-        val dockParams = WindowManager.LayoutParams(
-            20.dp, 60.dp,
-            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            x = calculateEdgeDockX(params)
-            y = calculateEdgeDockY(params)
-        }
-
-        dock.setOnClickListener {
-            unDockOverlay()
-        }
-
-        wm.addView(dock.getView(), dockParams)
-        edgeDockView = dock
-    }
-
-    private fun calculateEdgeDockX(params: WindowManager.LayoutParams): Int {
-        val sw = ScreenUtils.getScreenWidth(this)
-        return when {
-            params.x < 0 -> 0
-            params.x > sw - params.width -> sw - 20.dp
-            else -> params.x + params.width / 2 - 10.dp
-        }
-    }
-
-    private fun calculateEdgeDockY(params: WindowManager.LayoutParams): Int {
-        val sh = ScreenUtils.getScreenHeight(this)
-        return when {
-            params.y < 0 -> params.y + params.height / 2 - 30.dp
-            params.y > sh - params.height -> sh - 60.dp
-            else -> params.y + params.height / 2 - 30.dp
-        }
-    }
-
-    private fun unDockOverlay() {
-        val params = overlayParams ?: return
-        val sw = ScreenUtils.getScreenWidth(this)
-        val sh = ScreenUtils.getScreenHeight(this)
-
-        if (params.x < 0) params.x = 20.dp
-        else if (params.x > sw - params.width) params.x = sw - params.width - 20.dp
-        if (params.y < 0) params.y = 20.dp
-        else if (params.y > sh - params.height) params.y = sh - params.height - 20.dp
-
-        overlay?.let { wm.updateViewLayout(it, params) }
-        removeEdgeDock()
-        LockManager.setLocked(false)
-        overlay?.setLocked(false)
-    }
-
-    private fun removeEdgeDock() {
-        edgeDockView?.let { dock ->
-            val view = dock.getView()
-            if (view.isAttachedToWindow) {
-                wm.removeView(view)
-            }
-        }
-        edgeDockView = null
     }
 
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()
