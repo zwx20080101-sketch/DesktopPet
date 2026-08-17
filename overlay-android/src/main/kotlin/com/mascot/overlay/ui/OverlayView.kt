@@ -21,16 +21,16 @@ import com.mascot.overlay.ui.edge.DefaultEdgeDockView
 import com.mascot.overlay.util.ScreenUtils
 
 class OverlayView(
-    val context: Context,
+    val ctx: Context,
     private val wm: WindowManager,
     private val params: WindowManager.LayoutParams,
     private val bridge: ServiceBridge?
-) : FrameLayout(context) {
+) : FrameLayout(ctx) {
 
-    private val petView: PetView = EmojiPetView(context)
-    private val menuView: MenuView = RoleMenuView(context)
-    private val controlMenuView: ControlMenuView = DefaultControlMenuView(context)
-    private val edgeDockView: EdgeDockView = DefaultEdgeDockView(context)
+    private val petView: PetView = EmojiPetView(ctx)
+    private val menuView: MenuView = RoleMenuView(ctx)
+    private val controlMenuView: ControlMenuView = DefaultControlMenuView(ctx)
+    private val edgeDockView: EdgeDockView = DefaultEdgeDockView(ctx)
 
     private val actionExecutor: ActionExecutor
     private val gestureDetector: GestureDetector
@@ -142,8 +142,8 @@ class OverlayView(
     }
 
     private fun checkEdgeDock() {
-        val sw = ScreenUtils.getScreenWidth(context)
-        val sh = ScreenUtils.getScreenHeight(context)
+        val sw = ScreenUtils.getScreenWidth(ctx)
+        val sh = ScreenUtils.getScreenHeight(ctx)
         val threshold = 40.dp
         val close = params.x < threshold || params.x > sw - params.width - threshold ||
                 params.y < threshold || params.y > sh - params.height - threshold
@@ -162,8 +162,8 @@ class OverlayView(
     }
 
     private fun snapToEdgeIfNeeded() {
-        val sw = ScreenUtils.getScreenWidth(context)
-        val sh = ScreenUtils.getScreenHeight(context)
+        val sw = ScreenUtils.getScreenWidth(ctx)
+        val sh = ScreenUtils.getScreenHeight(ctx)
         val threshold = 40.dp
         var docked = false
 
@@ -194,8 +194,8 @@ class OverlayView(
     }
 
     private fun unDockFromEdge() {
-        val sw = ScreenUtils.getScreenWidth(context)
-        val sh = ScreenUtils.getScreenHeight(context)
+        val sw = ScreenUtils.getScreenWidth(ctx)
+        val sh = ScreenUtils.getScreenHeight(ctx)
         if (params.x < 0) params.x = 20.dp
         else if (params.x > sw - params.width) params.x = sw - params.width - 20.dp
         if (params.y < 0) params.y = 20.dp
