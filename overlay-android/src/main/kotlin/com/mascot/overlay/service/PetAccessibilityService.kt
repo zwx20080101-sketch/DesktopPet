@@ -10,7 +10,9 @@ import com.mascot.overlay.bridge.ServiceBridge
 import com.mascot.overlay.ui.OverlayView
 
 class PetAccessibilityService : AccessibilityService() {
-    companion object { var instance: PetAccessibilityService? = null }
+    companion object {
+        var instance: PetAccessibilityService? = null
+    }
 
     private lateinit var wm: WindowManager
     private var overlay: OverlayView? = null
@@ -25,7 +27,11 @@ class PetAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
     override fun onInterrupt() {}
-    override fun onDestroy() { removePet(); instance = null; super.onDestroy() }
+    override fun onDestroy() {
+        removePet()
+        instance = null
+        super.onDestroy()
+    }
 
     fun showPet() {
         if (overlay != null) return
@@ -39,7 +45,8 @@ class PetAccessibilityService : AccessibilityService() {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = 100; y = 200
+            x = 100
+            y = 200
         }
 
         val view = OverlayView(this, wm, params, bridge)

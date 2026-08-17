@@ -2,7 +2,6 @@ package com.mascot.overlay.ui
 
 import android.content.Context
 import android.view.Gravity
-import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
 import com.mascot.overlay.bridge.ServiceBridge
@@ -22,7 +21,7 @@ import com.mascot.overlay.ui.edge.DefaultEdgeDockView
 import com.mascot.overlay.util.ScreenUtils
 
 class OverlayView(
-    context: Context,
+    val context: Context,
     private val wm: WindowManager,
     private val params: WindowManager.LayoutParams,
     private val bridge: ServiceBridge?
@@ -41,17 +40,14 @@ class OverlayView(
     private val baseHeight = 120.dp
 
     init {
-        // 添加视图
         addView(petView.getView(), LayoutParams(baseWidth, baseHeight))
         addView(menuView.getView(), LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
         addView(controlMenuView.getView(), LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
         addView(edgeDockView.getView(), LayoutParams(20.dp, 60.dp))
 
-        // 初始化角色
         petView.setRole(RoleManager.current)
         petView.setScale(scaleValue)
 
-        // 配置菜单
         menuView.setRoles(RoleManager.roles)
         menuView.setOnRoleSelectedListener { role ->
             RoleManager.switch(role.id)
@@ -59,7 +55,6 @@ class OverlayView(
             menuView.hide()
         }
 
-        // 配置控制菜单
         controlMenuView.setOnLockToggleListener {
             LockManager.toggle()
             petView.setLocked(LockManager.isLocked())
@@ -73,13 +68,12 @@ class OverlayView(
             PetAccessibilityService.instance?.removePet()
         }
 
-        // 边缘点击
         edgeDockView.setOnClickListener { unDockFromEdge() }
 
-        // 动作执行器
         actionExecutor = ActionExecutor(
             onDrag = { dx, dy ->
-                params.x += dx; params.y += dy
+                params.x += dx
+                params.y += dy
                 wm.updateViewLayout(this, params)
                 checkEdgeDock()
             },
@@ -90,16 +84,18 @@ class OverlayView(
                 params.width = (baseWidth * newScale).toInt()
                 params.height = (baseHeight * newScale).toInt()
                 wm.updateViewLayout(this, params)
-                petView.setScale(1f) // 容器缩放改为窗口尺寸变化，内部不缩放
+                petView.setScale(1f)
             },
             onSingleTap = {
-                // 单击反应
-                RoleManager.current.let { role ->
-                    // 简单跳动动画
-                    petView.getView().animate().scaleX(1.2f).scaleY(1.2f).setDuration(100)
-                        .withEndAction { petView.getView().animate().scaleX(1f).scaleY(1f).setDuration(100).start() }
-                        .start()
-                }
+                petView.getView().animate()
+                    .scaleX(1.2f).scaleY(1.2f)
+                    .setDuration(100)
+                    .withEndAction {
+                        petView.getView().animate()
+                            .scaleX(1f).scaleY(1f)
+                            .setDuration(100).start()
+                    }
+                    .start()
                 hideMenusIfVisible()
             },
             onDoubleTap = {
@@ -110,7 +106,6 @@ class OverlayView(
             }
         )
 
-        // 手势检测器
         gestureDetector = GestureDetector(object : GestureDetector.GestureListener {
             override fun onSingleTap() = actionExecutor.executeSingleTap()
             override fun onDoubleTap() = actionExecutor.executeDoubleTap()
@@ -172,11 +167,21 @@ class OverlayView(
         val threshold = 40.dp
         var docked = false
 
-        if (params.x < threshold) { params.x = -params.width + 20.dp; docked = true }
-        else if (params.x > sw - params.width - threshold) { params.x = sw - 20.dp; docked = true }
+        if (params.x < threshold) {
+            params.x = -params.width + 20.dp
+            docked = true
+        } else if (params.x > sw - params.width - threshold) {
+            params.x = sw - 20.dp
+            docked = true
+        }
 
-        if (params.y < threshold) { params.y = -params.height + 20.dp; docked = true }
-        else if (params.y > sh - params.height - threshold) { params.y = sh - 20.dp; docked = true }
+        if (params.y < threshold) {
+            params.y = -params.height + 20.dp
+            docked = true
+        } else if (params.y > sh - params.height - threshold) {
+            params.y = sh - 20.dp
+            docked = true
+        }
 
         if (docked) {
             wm.updateViewLayout(this, params)

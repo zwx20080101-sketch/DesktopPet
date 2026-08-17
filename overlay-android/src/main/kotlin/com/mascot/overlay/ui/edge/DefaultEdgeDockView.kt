@@ -6,7 +6,7 @@ import android.view.View
 import android.widget.FrameLayout
 import android.widget.TextView
 
-class DefaultEdgeDockView(context: Context) : EdgeDockView {
+class DefaultEdgeDockView(val context: Context) : EdgeDockView {
     private val container = FrameLayout(context).apply { visibility = View.GONE }
     private val bar = TextView(context).apply {
         text = ""

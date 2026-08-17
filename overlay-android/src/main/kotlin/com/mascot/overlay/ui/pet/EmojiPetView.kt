@@ -8,7 +8,7 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import com.mascot.overlay.role.Role
 
-class EmojiPetView(context: Context) : PetView {
+class EmojiPetView(val context: Context) : PetView {
     private val container = FrameLayout(context).apply {
         setBackgroundColor(Color.TRANSPARENT)
     }
