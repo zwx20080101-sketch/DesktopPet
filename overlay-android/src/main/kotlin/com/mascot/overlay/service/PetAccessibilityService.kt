@@ -92,23 +92,18 @@ class PetAccessibilityService : AccessibilityService() {
         val threshold = 40.dp
 
         var docked = false
-        // 左边缘
         if (params.x < threshold) {
             params.x = -params.width + 20.dp
             docked = true
-        }
-        // 右边缘
-        else if (params.x > sw - params.width - threshold) {
+        } else if (params.x > sw - params.width - threshold) {
             params.x = sw - 20.dp
             docked = true
         }
-        // 上边缘
+
         if (params.y < threshold) {
             params.y = -params.height + 20.dp
             docked = true
-        }
-        // 下边缘
-        else if (params.y > sh - params.height - threshold) {
+        } else if (params.y > sh - params.height - threshold) {
             params.y = sh - 20.dp
             docked = true
         }
@@ -117,12 +112,11 @@ class PetAccessibilityService : AccessibilityService() {
             wm.updateViewLayout(view, params)
             showEdgeDock(params)
             LockManager.setLocked(true)
-        overlay?.setLocked(true)
+            overlay?.setLocked(true)
         }
     }
 
     private fun showEdgeDock(params: WindowManager.LayoutParams) {
-        // 如果已有边缘条，先移除
         removeEdgeDock()
 
         val dock = DefaultEdgeDockView(this)
@@ -177,11 +171,6 @@ class PetAccessibilityService : AccessibilityService() {
         removeEdgeDock()
         LockManager.setLocked(false)
         overlay?.setLocked(false)
-        // 更新宠物锁定状态
-        overlay?.let {
-            // 通过 OverlayView 暴露方法更新锁定，这里简单触发
-            // 但我们无法直接访问 petView，稍后 OverlayView 提供方法
-        }
     }
 
     private fun removeEdgeDock() {
