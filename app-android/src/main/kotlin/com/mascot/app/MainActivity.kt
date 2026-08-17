@@ -20,70 +20,55 @@ class MainActivity : Activity() {
         val scrollView = ScrollView(this)
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(60, 80, 60, 80)
+            setPadding(40, 80, 40, 80)
         }
         scrollView.addView(layout)
         setContentView(scrollView)
 
+        // 标题，与状态分开，避免遮挡
+        val titleText = TextView(this).apply {
+            text = "🐾 桌面萌宠"
+            textSize = 28f
+            setPadding(0, 0, 0, 30)
+        }
+        layout.addView(titleText)
+
         val statusText = TextView(this).apply {
             text = if (isAccessibilityOn()) "✅ 无障碍服务已开启" else "❌ 无障碍服务未开启"
             textSize = 16f
-            setPadding(0, 30, 0, 30)
+            setPadding(0, 0, 0, 30)
         }
         layout.addView(statusText)
 
-        val showButton = Button(this).apply {
-            text = "显示悬浮球"
-            setOnClickListener {
-                val service = PetAccessibilityService.instance
-                if (service != null) {
-                    service.showPet()
-                } else {
-                    Toast.makeText(this@MainActivity, "服务未连接，请先开启无障碍服务", Toast.LENGTH_SHORT).show()
-                }
+        // 功能按钮
+        addButton(layout, "显示悬浮球") {
+            val service = PetAccessibilityService.instance
+            if (service != null) {
+                service.showPet()
+            } else {
+                Toast.makeText(this@MainActivity, "服务未连接，请先开启无障碍服务", Toast.LENGTH_SHORT).show()
             }
         }
-        layout.addView(showButton)
 
-        val hideButton = Button(this).apply {
-            text = "隐藏悬浮球"
-            setOnClickListener {
-                PetAccessibilityService.instance?.removePet()
-            }
+        addButton(layout, "隐藏悬浮球") {
+            PetAccessibilityService.instance?.removePet()
         }
-        layout.addView(hideButton)
 
-        val roleButton = Button(this).apply {
-            text = "角色管理（即将推出）"
-            setOnClickListener {
-                Toast.makeText(this@MainActivity, "功能开发中", Toast.LENGTH_SHORT).show()
-            }
+        addButton(layout, "角色管理（即将推出）") {
+            Toast.makeText(this@MainActivity, "功能开发中", Toast.LENGTH_SHORT).show()
         }
-        layout.addView(roleButton)
 
-        val gestureButton = Button(this).apply {
-            text = "手势设置（即将推出）"
-            setOnClickListener {
-                Toast.makeText(this@MainActivity, "功能开发中", Toast.LENGTH_SHORT).show()
-            }
+        addButton(layout, "手势设置（即将推出）") {
+            Toast.makeText(this@MainActivity, "功能开发中", Toast.LENGTH_SHORT).show()
         }
-        layout.addView(gestureButton)
 
-        val moreButton = Button(this).apply {
-            text = "更多设置（即将推出）"
-            setOnClickListener {
-                Toast.makeText(this@MainActivity, "功能开发中", Toast.LENGTH_SHORT).show()
-            }
+        addButton(layout, "更多设置（即将推出）") {
+            Toast.makeText(this@MainActivity, "功能开发中", Toast.LENGTH_SHORT).show()
         }
-        layout.addView(moreButton)
 
-        val accessibilityButton = Button(this).apply {
-            text = "无障碍设置"
-            setOnClickListener {
-                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-            }
+        addButton(layout, "无障碍设置") {
+            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
-        layout.addView(accessibilityButton)
 
         setupBridge()
     }
@@ -91,6 +76,14 @@ class MainActivity : Activity() {
     override fun onResume() {
         super.onResume()
         setupBridge()
+    }
+
+    private fun addButton(layout: LinearLayout, text: String, onClick: () -> Unit) {
+        val button = Button(this).apply {
+            this.text = text
+            setOnClickListener { onClick() }
+        }
+        layout.addView(button)
     }
 
     private fun setupBridge() {

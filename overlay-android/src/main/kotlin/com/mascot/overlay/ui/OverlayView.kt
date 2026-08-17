@@ -16,21 +16,19 @@ import com.mascot.overlay.ui.menu.MenuView
 import com.mascot.overlay.ui.menu.RoleMenuView
 import com.mascot.overlay.ui.control.ControlMenuView
 import com.mascot.overlay.ui.control.DefaultControlMenuView
-import com.mascot.overlay.ui.edge.EdgeDockView
-import com.mascot.overlay.ui.edge.DefaultEdgeDockView
 import com.mascot.overlay.util.ScreenUtils
 
 class OverlayView(
     val ctx: Context,
     private val wm: WindowManager,
     private val params: WindowManager.LayoutParams,
-    private val bridge: ServiceBridge?
+    private val bridge: ServiceBridge?,
+    private val onRequestDock: () -> Unit
 ) : FrameLayout(ctx) {
 
     private val petView: PetView = EmojiPetView(ctx)
     private val menuView: MenuView = RoleMenuView(ctx)
     private val controlMenuView: ControlMenuView = DefaultControlMenuView(ctx)
-    private val edgeDockView: EdgeDockView = DefaultEdgeDockView(ctx)
 
     private val actionExecutor: ActionExecutor
     private val gestureDetector: GestureDetector
@@ -43,7 +41,6 @@ class OverlayView(
         addView(petView.getView(), LayoutParams(baseWidth, baseHeight))
         addView(menuView.getView(), LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
         addView(controlMenuView.getView(), LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT)
-        addView(edgeDockView.getView(), LayoutParams(20.dp, 60.dp))
 
         petView.setRole(RoleManager.current)
         petView.setScale(scaleValue)
@@ -68,16 +65,25 @@ class OverlayView(
             PetAccessibilityService.instance?.removePet()
         }
 
-        edgeDockView.setOnClickListener { unDockFromEdge() }
-
         actionExecutor = ActionExecutor(
             onDrag = { dx, dy ->
                 params.x += dx
                 params.y += dy
                 wm.updateViewLayout(this, params)
-                checkEdgeDock()
             },
-            onDragEnd = { snapToEdgeIfNeeded() },
+            onDragEnd = {
+                val sw = ScreenUtils.getScreenWidth(ctx)
+                val sh = ScreenUtils.getScreenHeight(ctx)
+                val threshold = 40.dp
+                val nearEdge =
+                    params.x < threshold ||
+                    params.x > sw - params.width - threshold ||
+                    params.y < threshold ||
+                    params.y > sh - params.height - threshold
+                if (nearEdge) {
+                    onRequestDock()
+                }
+            },
             onPinch = { scale ->
                 val newScale = scale.coerceIn(0.3f, 5.0f)
                 scaleValue = newScale
@@ -118,6 +124,10 @@ class OverlayView(
         setOnTouchListener { _, event -> gestureDetector.onTouch(this, event) }
     }
 
+    fun setLocked(locked: Boolean) {
+        petView.setLocked(locked)
+    }
+
     private fun showMenu() {
         val lp = menuView.getView().layoutParams as LayoutParams
         lp.gravity = Gravity.START or Gravity.TOP
@@ -139,72 +149,6 @@ class OverlayView(
     private fun hideMenusIfVisible() {
         if (menuView.isVisible()) menuView.hide()
         if (controlMenuView.isVisible()) controlMenuView.hide()
-    }
-
-    private fun checkEdgeDock() {
-        val sw = ScreenUtils.getScreenWidth(ctx)
-        val sh = ScreenUtils.getScreenHeight(ctx)
-        val threshold = 40.dp
-        val close = params.x < threshold || params.x > sw - params.width - threshold ||
-                params.y < threshold || params.y > sh - params.height - threshold
-
-        if (close) {
-            edgeDockView.show()
-            when {
-                params.x < threshold -> edgeDockView.setPosition(0, params.y + params.height / 2 - 30.dp)
-                params.x > sw - params.width - threshold -> edgeDockView.setPosition(sw - 20.dp, params.y + params.height / 2 - 30.dp)
-                params.y < threshold -> edgeDockView.setPosition(params.x + params.width / 2 - 10.dp, 0)
-                else -> edgeDockView.setPosition(params.x + params.width / 2 - 10.dp, sh - 60.dp)
-            }
-        } else {
-            edgeDockView.hide()
-        }
-    }
-
-    private fun snapToEdgeIfNeeded() {
-        val sw = ScreenUtils.getScreenWidth(ctx)
-        val sh = ScreenUtils.getScreenHeight(ctx)
-        val threshold = 40.dp
-        var docked = false
-
-        if (params.x < threshold) {
-            params.x = -params.width + 20.dp
-            docked = true
-        } else if (params.x > sw - params.width - threshold) {
-            params.x = sw - 20.dp
-            docked = true
-        }
-
-        if (params.y < threshold) {
-            params.y = -params.height + 20.dp
-            docked = true
-        } else if (params.y > sh - params.height - threshold) {
-            params.y = sh - 20.dp
-            docked = true
-        }
-
-        if (docked) {
-            wm.updateViewLayout(this, params)
-            edgeDockView.show()
-            LockManager.setLocked(true)
-            petView.setLocked(true)
-        } else {
-            edgeDockView.hide()
-        }
-    }
-
-    private fun unDockFromEdge() {
-        val sw = ScreenUtils.getScreenWidth(ctx)
-        val sh = ScreenUtils.getScreenHeight(ctx)
-        if (params.x < 0) params.x = 20.dp
-        else if (params.x > sw - params.width) params.x = sw - params.width - 20.dp
-        if (params.y < 0) params.y = 20.dp
-        else if (params.y > sh - params.height) params.y = sh - params.height - 20.dp
-
-        wm.updateViewLayout(this, params)
-        edgeDockView.hide()
-        LockManager.setLocked(false)
-        petView.setLocked(false)
     }
 
     private val Int.dp: Int get() = (this * resources.displayMetrics.density).toInt()

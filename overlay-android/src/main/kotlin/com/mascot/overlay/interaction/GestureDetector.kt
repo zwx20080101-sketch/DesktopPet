@@ -16,6 +16,7 @@ class GestureDetector(private val listener: GestureListener) {
         fun onPinch(scale: Float)
     }
 
+    private val handler = Handler(Looper.getMainLooper())
     private var startX = 0
     private var startY = 0
     private var lastX = 0
@@ -27,9 +28,7 @@ class GestureDetector(private val listener: GestureListener) {
     private var startScale = 1f
     private var longPressRunnable: Runnable? = null
     private var singleTapRunnable: Runnable? = null
-    private var lastTapTime = 0L
     private var tapCount = 0
-    private val handler = Handler(Looper.getMainLooper())
 
     fun onTouch(v: View, event: MotionEvent): Boolean {
         when (event.actionMasked) {
@@ -41,43 +40,61 @@ class GestureDetector(private val listener: GestureListener) {
                 downTime = System.currentTimeMillis()
                 isDragging = false
                 isPinching = false
-                startLongPressCheck(v)
+                startLongPressCheck()
+                return true
+            }
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                // 第二根手指落下，准备缩放
+                if (event.pointerCount == 2) {
+                    isPinching = true
+                    startDistance = distance(event)
+                    startScale = v.scaleX
+                    removeLongPressCheck()
+                    removeSingleTapCheck()
+                }
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
-                if (event.pointerCount == 1 && !isPinching) {
-                    val dx = event.rawX.toInt() - lastX
-                    val dy = event.rawY.toInt() - lastY
-                    if (abs(dx) > 5 || abs(dy) > 5) {
-                        isDragging = true
-                        removeLongPressCheck()
-                        listener.onDrag(dx, dy)
-                        lastX = event.rawX.toInt()
-                        lastY = event.rawY.toInt()
-                    }
-                } else if (event.pointerCount == 2) {
-                    if (!isPinching) {
-                        isPinching = true
-                        startDistance = distance(event)
-                        startScale = v.scaleX
-                        removeLongPressCheck()
-                    }
+                if (isPinching && event.pointerCount == 2) {
                     val newDist = distance(event)
                     if (newDist > 0) {
                         listener.onPinch(newDist / startDistance * startScale)
                     }
+                } else if (!isDragging && !isPinching && event.pointerCount == 1) {
+                    val dx = event.rawX.toInt() - lastX
+                    val dy = event.rawY.toInt() - lastY
+                    if (abs(dx) > 8 || abs(dy) > 8) {
+                        isDragging = true
+                        removeLongPressCheck()
+                        removeSingleTapCheck()
+                        listener.onDrag(dx, dy)
+                        lastX = event.rawX.toInt()
+                        lastY = event.rawY.toInt()
+                    }
+                } else if (isDragging && event.pointerCount == 1) {
+                    val dx = event.rawX.toInt() - lastX
+                    val dy = event.rawY.toInt() - lastY
+                    listener.onDrag(dx, dy)
+                    lastX = event.rawX.toInt()
+                    lastY = event.rawY.toInt()
+                }
+                return true
+            }
+            MotionEvent.ACTION_POINTER_UP -> {
+                if (isPinching) {
+                    isPinching = false
                 }
                 return true
             }
             MotionEvent.ACTION_UP -> {
                 removeLongPressCheck()
-                if (isPinching) {
-                    isPinching = false
-                    return true
-                }
                 if (isDragging) {
                     isDragging = false
                     listener.onDragEnd()
+                    return true
+                }
+                if (isPinching) {
+                    isPinching = false
                     return true
                 }
 
@@ -85,17 +102,13 @@ class GestureDetector(private val listener: GestureListener) {
                 if (now - downTime < 300) {
                     tapCount++
                     if (tapCount == 1) {
-                        lastTapTime = now
-                        singleTapRunnable?.let { handler.removeCallbacks(it) }
                         singleTapRunnable = Runnable {
-                            if (tapCount == 1) {
-                                listener.onSingleTap()
-                            }
+                            if (tapCount == 1) listener.onSingleTap()
                             tapCount = 0
                         }
                         handler.postDelayed(singleTapRunnable!!, 250)
                     } else if (tapCount >= 2) {
-                        singleTapRunnable?.let { handler.removeCallbacks(it) }
+                        removeSingleTapCheck()
                         tapCount = 0
                         listener.onDoubleTap()
                     }
@@ -106,7 +119,7 @@ class GestureDetector(private val listener: GestureListener) {
             }
             MotionEvent.ACTION_CANCEL -> {
                 removeLongPressCheck()
-                singleTapRunnable?.let { handler.removeCallbacks(it) }
+                removeSingleTapCheck()
                 isDragging = false
                 isPinching = false
                 tapCount = 0
@@ -116,7 +129,7 @@ class GestureDetector(private val listener: GestureListener) {
         return false
     }
 
-    private fun startLongPressCheck(v: View) {
+    private fun startLongPressCheck() {
         removeLongPressCheck()
         longPressRunnable = Runnable {
             if (!isDragging && !isPinching) {
@@ -129,6 +142,11 @@ class GestureDetector(private val listener: GestureListener) {
     private fun removeLongPressCheck() {
         longPressRunnable?.let { handler.removeCallbacks(it) }
         longPressRunnable = null
+    }
+
+    private fun removeSingleTapCheck() {
+        singleTapRunnable?.let { handler.removeCallbacks(it) }
+        singleTapRunnable = null
     }
 
     private fun distance(e: MotionEvent): Float {
