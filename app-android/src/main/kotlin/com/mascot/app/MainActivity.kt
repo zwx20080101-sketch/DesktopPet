@@ -1,7 +1,6 @@
 package com.mascot.app
 
 import android.app.Activity
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
@@ -27,7 +26,7 @@ class MainActivity : Activity() {
         setContentView(scrollView)
 
         val statusText = TextView(this).apply {
-            text = if (isAccessibilityServiceEnabled(this)) "✅ 无障碍服务已开启" else "❌ 无障碍服务未开启"
+            text = if (isAccessibilityOn()) "✅ 无障碍服务已开启" else "❌ 无障碍服务未开启"
             textSize = 16f
             setPadding(0, 30, 0, 30)
         }
@@ -105,11 +104,11 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun isAccessibilityServiceEnabled(context: Context): Boolean {
+    private fun isAccessibilityOn(): Boolean {
         val enabledServices = Settings.Secure.getString(
-            context.contentResolver,
+            contentResolver,
             Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
         )
-        return enabledServices?.contains(context.packageName) == true
+        return enabledServices?.contains(packageName) == true
     }
 }
