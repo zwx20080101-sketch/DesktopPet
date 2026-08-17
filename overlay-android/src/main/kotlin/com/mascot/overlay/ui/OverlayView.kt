@@ -10,7 +10,7 @@ import com.mascot.overlay.interaction.GestureDetector
 import com.mascot.overlay.lock.LockManager
 import com.mascot.overlay.role.RoleManager
 import com.mascot.overlay.service.PetAccessibilityService
-import com.mascot.overlay.ui.pet.EmojiPetView
+import com.mascot.overlay.ui.pet.SpritePetView
 import com.mascot.overlay.ui.pet.PetView
 import com.mascot.overlay.ui.menu.MenuView
 import com.mascot.overlay.ui.menu.RoleMenuView
@@ -26,7 +26,7 @@ class OverlayView(
     private val onRequestDock: () -> Unit
 ) : FrameLayout(ctx) {
 
-    private val petView: PetView = EmojiPetView(ctx)
+    private val petView: PetView = SpritePetView(ctx)
     private val menuView: MenuView = RoleMenuView(ctx)
     private val controlMenuView: ControlMenuView = DefaultControlMenuView(ctx)
 
@@ -44,6 +44,7 @@ class OverlayView(
 
         petView.setRole(RoleManager.current)
         petView.setScale(scaleValue)
+        (petView as SpritePetView).playState("idle")
 
         menuView.setRoles(RoleManager.roles)
         menuView.setOnRoleSelectedListener { role ->
@@ -72,7 +73,6 @@ class OverlayView(
                 wm.updateViewLayout(this, params)
             },
             onDragEnd = {
-                // 如果宠物已经超出屏幕边界，触发停靠
                 val sw = ScreenUtils.getScreenWidth(ctx)
                 val sh = ScreenUtils.getScreenHeight(ctx)
                 val outOfBounds =
@@ -80,13 +80,12 @@ class OverlayView(
                     params.x > sw - params.width ||
                     params.y < 0 ||
                     params.y > sh - params.height
-
                 if (outOfBounds) {
                     onRequestDock()
                 }
             },
             onPinch = { scale ->
-                val newScale = scale.coerceIn(0.3f, 5.0f)
+                val newScale = scale.coerceIn(0.5f, 3.0f)
                 scaleValue = newScale
                 params.width = (baseWidth * newScale).toInt()
                 params.height = (baseHeight * newScale).toInt()
@@ -94,15 +93,7 @@ class OverlayView(
                 petView.setScale(1f)
             },
             onSingleTap = {
-                petView.getView().animate()
-                    .scaleX(1.2f).scaleY(1.2f)
-                    .setDuration(100)
-                    .withEndAction {
-                        petView.getView().animate()
-                            .scaleX(1f).scaleY(1f)
-                            .setDuration(100).start()
-                    }
-                    .start()
+                (petView as SpritePetView).playState("jump")
                 hideMenusIfVisible()
             },
             onDoubleTap = {

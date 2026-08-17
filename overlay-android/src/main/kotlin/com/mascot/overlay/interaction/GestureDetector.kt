@@ -29,7 +29,7 @@ class GestureDetector(private val listener: GestureListener) {
     private var longPressRunnable: Runnable? = null
     private var singleTapRunnable: Runnable? = null
     private var tapCount = 0
-    private var longPressTriggered = false  // 新增：长按是否已触发
+    private var longPressTriggered = false
 
     fun onTouch(v: View, event: MotionEvent): Boolean {
         when (event.actionMasked) {
@@ -64,7 +64,7 @@ class GestureDetector(private val listener: GestureListener) {
                 } else if (!isDragging && !isPinching && event.pointerCount == 1) {
                     val dx = event.rawX.toInt() - lastX
                     val dy = event.rawY.toInt() - lastY
-                    if (abs(dx) > 8 || abs(dy) > 8) {
+                    if (abs(dx) > 10 || abs(dy) > 10) {
                         isDragging = true
                         removeLongPressCheck()
                         removeSingleTapCheck()
@@ -98,8 +98,6 @@ class GestureDetector(private val listener: GestureListener) {
                     isPinching = false
                     return true
                 }
-
-                // 如果长按已触发，不再处理单击/双击
                 if (longPressTriggered) {
                     return true
                 }
@@ -114,12 +112,14 @@ class GestureDetector(private val listener: GestureListener) {
                             }
                             tapCount = 0
                         }
-                        handler.postDelayed(singleTapRunnable!!, 350)  // 延迟 350ms 等待双击
+                        handler.postDelayed(singleTapRunnable!!, 350)
                     } else if (tapCount >= 2) {
                         removeSingleTapCheck()
                         tapCount = 0
                         listener.onDoubleTap()
                     }
+                } else {
+                    listener.onLongPress()
                 }
                 return true
             }
