@@ -117,6 +117,7 @@ class PetAccessibilityService : AccessibilityService() {
             wm.updateViewLayout(view, params)
             showEdgeDock(params)
             LockManager.setLocked(true)
+        overlay?.setLocked(true)
         }
     }
 
@@ -175,6 +176,7 @@ class PetAccessibilityService : AccessibilityService() {
         overlay?.let { wm.updateViewLayout(it, params) }
         removeEdgeDock()
         LockManager.setLocked(false)
+        overlay?.setLocked(false)
         // 更新宠物锁定状态
         overlay?.let {
             // 通过 OverlayView 暴露方法更新锁定，这里简单触发
