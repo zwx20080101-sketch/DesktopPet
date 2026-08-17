@@ -23,7 +23,7 @@ class OverlayView(
     private val wm: WindowManager,
     private val params: WindowManager.LayoutParams,
     private val bridge: ServiceBridge?,
-    private val onRequestDock: (WindowManager.LayoutParams) -> Unit
+    private val onRequestDock: () -> Unit
 ) : FrameLayout(ctx) {
 
     private val petView: PetView = EmojiPetView(ctx)
@@ -72,16 +72,17 @@ class OverlayView(
                 wm.updateViewLayout(this, params)
             },
             onDragEnd = {
+                // 如果宠物已经超出屏幕边界，触发停靠
                 val sw = ScreenUtils.getScreenWidth(ctx)
                 val sh = ScreenUtils.getScreenHeight(ctx)
-                val threshold = 40.dp
-                val nearEdge =
-                    params.x < threshold ||
-                    params.x > sw - params.width - threshold ||
-                    params.y < threshold ||
-                    params.y > sh - params.height - threshold
-                if (nearEdge) {
-                    onRequestDock(params)
+                val outOfBounds =
+                    params.x < 0 ||
+                    params.x > sw - params.width ||
+                    params.y < 0 ||
+                    params.y > sh - params.height
+
+                if (outOfBounds) {
+                    onRequestDock()
                 }
             },
             onPinch = { scale ->

@@ -29,6 +29,7 @@ class GestureDetector(private val listener: GestureListener) {
     private var longPressRunnable: Runnable? = null
     private var singleTapRunnable: Runnable? = null
     private var tapCount = 0
+    private var longPressTriggered = false  // 新增：长按是否已触发
 
     fun onTouch(v: View, event: MotionEvent): Boolean {
         when (event.actionMasked) {
@@ -40,11 +41,11 @@ class GestureDetector(private val listener: GestureListener) {
                 downTime = System.currentTimeMillis()
                 isDragging = false
                 isPinching = false
+                longPressTriggered = false
                 startLongPressCheck()
                 return true
             }
             MotionEvent.ACTION_POINTER_DOWN -> {
-                // 第二根手指落下，准备缩放
                 if (event.pointerCount == 2) {
                     isPinching = true
                     startDistance = distance(event)
@@ -98,22 +99,27 @@ class GestureDetector(private val listener: GestureListener) {
                     return true
                 }
 
+                // 如果长按已触发，不再处理单击/双击
+                if (longPressTriggered) {
+                    return true
+                }
+
                 val now = System.currentTimeMillis()
                 if (now - downTime < 300) {
                     tapCount++
                     if (tapCount == 1) {
                         singleTapRunnable = Runnable {
-                            if (tapCount == 1) listener.onSingleTap()
+                            if (tapCount == 1) {
+                                listener.onSingleTap()
+                            }
                             tapCount = 0
                         }
-                        handler.postDelayed(singleTapRunnable!!, 250)
+                        handler.postDelayed(singleTapRunnable!!, 350)  // 延迟 350ms 等待双击
                     } else if (tapCount >= 2) {
                         removeSingleTapCheck()
                         tapCount = 0
                         listener.onDoubleTap()
                     }
-                } else {
-                    listener.onLongPress()
                 }
                 return true
             }
@@ -123,6 +129,7 @@ class GestureDetector(private val listener: GestureListener) {
                 isDragging = false
                 isPinching = false
                 tapCount = 0
+                longPressTriggered = false
                 return true
             }
         }
@@ -133,6 +140,7 @@ class GestureDetector(private val listener: GestureListener) {
         removeLongPressCheck()
         longPressRunnable = Runnable {
             if (!isDragging && !isPinching) {
+                longPressTriggered = true
                 listener.onLongPress()
             }
         }

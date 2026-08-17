@@ -67,7 +67,7 @@ class PetAccessibilityService : AccessibilityService() {
             wm = wm,
             params = params,
             bridge = bridge,
-            onRequestDock = { p -> dockOverlay(p) }
+            onRequestDock = { dockOverlay() }
         )
 
         wm.addView(view, params)
@@ -86,25 +86,27 @@ class PetAccessibilityService : AccessibilityService() {
         removeEdgeDock()
     }
 
-    private fun dockOverlay(params: WindowManager.LayoutParams) {
+    private fun dockOverlay() {
+        val params = overlayParams ?: return
         val sw = ScreenUtils.getScreenWidth(this)
         val sh = ScreenUtils.getScreenHeight(this)
-        val threshold = 40.dp
+        val edgeBarSize = 20.dp  // 边缘条宽度
 
+        // 判断宠物在哪个边缘外，将其完全移出屏幕，只留 edgeBarSize
         var docked = false
-        if (params.x < threshold) {
-            params.x = -params.width + 20.dp
+        if (params.x < 0) {
+            params.x = -params.width + edgeBarSize
             docked = true
-        } else if (params.x > sw - params.width - threshold) {
-            params.x = sw - 20.dp
+        } else if (params.x > sw - params.width) {
+            params.x = sw - edgeBarSize
             docked = true
         }
 
-        if (params.y < threshold) {
-            params.y = -params.height + 20.dp
+        if (params.y < 0) {
+            params.y = -params.height + edgeBarSize
             docked = true
-        } else if (params.y > sh - params.height - threshold) {
-            params.y = sh - 20.dp
+        } else if (params.y > sh - params.height) {
+            params.y = sh - edgeBarSize
             docked = true
         }
 
@@ -162,6 +164,7 @@ class PetAccessibilityService : AccessibilityService() {
         val sw = ScreenUtils.getScreenWidth(this)
         val sh = ScreenUtils.getScreenHeight(this)
 
+        // 将宠物移回屏幕内
         if (params.x < 0) params.x = 20.dp
         else if (params.x > sw - params.width) params.x = sw - params.width - 20.dp
         if (params.y < 0) params.y = 20.dp
