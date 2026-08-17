@@ -26,7 +26,6 @@ class MainActivity : Activity() {
         scrollView.addView(layout)
         setContentView(scrollView)
 
-        // 状态文本
         val statusText = TextView(this).apply {
             text = if (isAccessibilityServiceEnabled(this)) "✅ 无障碍服务已开启" else "❌ 无障碍服务未开启"
             textSize = 16f
@@ -34,7 +33,6 @@ class MainActivity : Activity() {
         }
         layout.addView(statusText)
 
-        // 显示悬浮球按钮
         val showButton = Button(this).apply {
             text = "显示悬浮球"
             setOnClickListener {
@@ -48,7 +46,6 @@ class MainActivity : Activity() {
         }
         layout.addView(showButton)
 
-        // 隐藏悬浮球按钮
         val hideButton = Button(this).apply {
             text = "隐藏悬浮球"
             setOnClickListener {
@@ -57,7 +54,6 @@ class MainActivity : Activity() {
         }
         layout.addView(hideButton)
 
-        // 角色管理（占位）
         val roleButton = Button(this).apply {
             text = "角色管理（即将推出）"
             setOnClickListener {
@@ -66,7 +62,6 @@ class MainActivity : Activity() {
         }
         layout.addView(roleButton)
 
-        // 手势设置（占位）
         val gestureButton = Button(this).apply {
             text = "手势设置（即将推出）"
             setOnClickListener {
@@ -75,7 +70,6 @@ class MainActivity : Activity() {
         }
         layout.addView(gestureButton)
 
-        // 更多设置（占位）
         val moreButton = Button(this).apply {
             text = "更多设置（即将推出）"
             setOnClickListener {
@@ -84,7 +78,6 @@ class MainActivity : Activity() {
         }
         layout.addView(moreButton)
 
-        // 无障碍设置
         val accessibilityButton = Button(this).apply {
             text = "无障碍设置"
             setOnClickListener {
@@ -93,15 +86,12 @@ class MainActivity : Activity() {
         }
         layout.addView(accessibilityButton)
 
-        // 设置桥接
         setupBridge()
     }
 
     override fun onResume() {
         super.onResume()
-        // 重新设置桥接
         setupBridge()
-        // 刷新状态文本（直接重建或忽略，本Demo简单处理）
     }
 
     private fun setupBridge() {
