@@ -23,7 +23,7 @@ class OverlayView(
     private val wm: WindowManager,
     private val params: WindowManager.LayoutParams,
     private val bridge: ServiceBridge?,
-    private val onRequestDock: () -> Unit
+    private val onRequestDock: (WindowManager.LayoutParams) -> Unit
 ) : FrameLayout(ctx) {
 
     private val petView: PetView = EmojiPetView(ctx)
@@ -81,7 +81,7 @@ class OverlayView(
                     params.y < threshold ||
                     params.y > sh - params.height - threshold
                 if (nearEdge) {
-                    onRequestDock()
+                    onRequestDock(params)
                 }
             },
             onPinch = { scale ->

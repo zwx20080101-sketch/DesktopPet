@@ -67,7 +67,7 @@ class PetAccessibilityService : AccessibilityService() {
             wm = wm,
             params = params,
             bridge = bridge,
-            onRequestDock = { dockOverlay(params, view) }
+            onRequestDock = { p -> dockOverlay(p) }
         )
 
         wm.addView(view, params)
@@ -86,7 +86,7 @@ class PetAccessibilityService : AccessibilityService() {
         removeEdgeDock()
     }
 
-    private fun dockOverlay(params: WindowManager.LayoutParams, view: OverlayView) {
+    private fun dockOverlay(params: WindowManager.LayoutParams) {
         val sw = ScreenUtils.getScreenWidth(this)
         val sh = ScreenUtils.getScreenHeight(this)
         val threshold = 40.dp
@@ -109,7 +109,7 @@ class PetAccessibilityService : AccessibilityService() {
         }
 
         if (docked) {
-            wm.updateViewLayout(view, params)
+            overlay?.let { wm.updateViewLayout(it, params) }
             showEdgeDock(params)
             LockManager.setLocked(true)
             overlay?.setLocked(true)
