@@ -8,7 +8,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 
-class DefaultControlMenuView(context: Context) : ControlMenuView {
+class DefaultControlMenuView(val context: Context) : ControlMenuView {
     private val container = FrameLayout(context).apply { visibility = View.GONE }
     private val linear = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL

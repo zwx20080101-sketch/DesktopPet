@@ -7,7 +7,7 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import com.mascot.overlay.role.Role
 
-class RoleMenuView(context: Context) : MenuView {
+class RoleMenuView(val context: Context) : MenuView {
     private val container = FrameLayout(context).apply {
         visibility = View.GONE
         setBackgroundColor(Color.TRANSPARENT)
