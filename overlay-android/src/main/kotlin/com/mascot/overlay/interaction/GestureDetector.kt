@@ -5,7 +5,6 @@ import android.view.View
 import kotlin.math.abs
 
 class GestureDetector(private val listener: GestureListener) {
-
     interface GestureListener {
         fun onSingleTap()
         fun onDoubleTap()
@@ -26,29 +25,27 @@ class GestureDetector(private val listener: GestureListener) {
     private var startScale = 1f
     private var longPressRunnable: Runnable? = null
     private var lastTapTime = 0L
+    private var tapCount = 0
 
     fun onTouch(v: View, event: MotionEvent): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                startX = event.rawX.toInt()
-                startY = event.rawY.toInt()
-                lastX = startX
-                lastY = startY
+                startX = event.rawX.toInt(); startY = event.rawY.toInt()
+                lastX = startX; lastY = startY
                 downTime = System.currentTimeMillis()
-                isDragging = false
-                isPinching = false
+                isDragging = false; isPinching = false
                 startLongPressCheck(v)
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
                 if (event.pointerCount == 1 && !isPinching) {
-                    val deltaX = event.rawX.toInt() - lastX
-                    val deltaY = event.rawY.toInt() - lastY
-                    if (abs(deltaX) > 5 || abs(deltaY) > 5) {
+                    val dx = event.rawX.toInt() - lastX
+                    val dy = event.rawY.toInt() - lastY
+                    if (abs(dx) > 5 || abs(dy) > 5) {
                         isDragging = true
-                        listener.onDrag(deltaX, deltaY)
-                        lastX = event.rawX.toInt()
-                        lastY = event.rawY.toInt()
+                        removeLongPressCheck()
+                        listener.onDrag(dx, dy)
+                        lastX = event.rawX.toInt(); lastY = event.rawY.toInt()
                     }
                 } else if (event.pointerCount == 2) {
                     if (!isPinching) {
@@ -57,37 +54,37 @@ class GestureDetector(private val listener: GestureListener) {
                         startScale = v.scaleX
                         removeLongPressCheck()
                     }
-                    val newDistance = distance(event)
-                    val scale = newDistance / startDistance * startScale
-                    listener.onPinch(scale)
+                    val newDist = distance(event)
+                    if (newDist > 0) listener.onPinch(newDist / startDistance * startScale)
                 }
                 return true
             }
             MotionEvent.ACTION_UP -> {
                 removeLongPressCheck()
-                if (isPinching) {
-                    isPinching = false
-                } else if (isDragging) {
-                    isDragging = false
-                    listener.onDragEnd()
-                } else {
-                    val time = System.currentTimeMillis() - downTime
-                    if (time < 200) {
-                        if (lastTapTime > 0 && System.currentTimeMillis() - lastTapTime < 300) {
-                            listener.onDoubleTap()
-                            lastTapTime = 0
-                        } else {
-                            lastTapTime = System.currentTimeMillis()
-                            listener.onSingleTap()
-                        }
+                if (isPinching) { isPinching = false; return true }
+                if (isDragging) { isDragging = false; listener.onDragEnd(); return true }
+
+                val now = System.currentTimeMillis()
+                if (now - downTime < 300) {
+                    tapCount++
+                    if (tapCount == 1) {
+                        lastTapTime = now
+                        v.postDelayed({
+                            if (tapCount == 1) listener.onSingleTap()
+                            tapCount = 0
+                        }, 250)
+                    } else if (tapCount >= 2) {
+                        listener.onDoubleTap()
+                        tapCount = 0
                     }
+                } else {
+                    listener.onLongPress()
                 }
                 return true
             }
             MotionEvent.ACTION_CANCEL -> {
                 removeLongPressCheck()
-                isDragging = false
-                isPinching = false
+                isDragging = false; isPinching = false; tapCount = 0
                 return true
             }
         }
@@ -96,24 +93,13 @@ class GestureDetector(private val listener: GestureListener) {
 
     private fun startLongPressCheck(v: View) {
         removeLongPressCheck()
-        longPressRunnable = Runnable {
-            if (!isDragging && !isPinching) {
-                listener.onLongPress()
-            }
-        }
+        longPressRunnable = Runnable { if (!isDragging && !isPinching) listener.onLongPress() }
         v.postDelayed(longPressRunnable, 500)
     }
-
-    private fun removeLongPressCheck() {
-        longPressRunnable?.let { runnable ->
-            runnable.let { }
-        }
-        longPressRunnable = null
-    }
-
-    private fun distance(event: MotionEvent): Float {
-        val dx = event.getX(0) - event.getX(1)
-        val dy = event.getY(0) - event.getY(1)
-        return kotlin.math.sqrt(dx * dx + dy * dy)
+    private fun removeLongPressCheck() { longPressRunnable?.let { }; longPressRunnable = null }
+    private fun distance(e: MotionEvent): Float {
+        val dx = e.getX(0) - e.getX(1)
+        val dy = e.getY(0) - e.getY(1)
+        return kotlin.math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
     }
 }

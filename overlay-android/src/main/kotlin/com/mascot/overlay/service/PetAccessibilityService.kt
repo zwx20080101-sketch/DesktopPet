@@ -11,6 +11,7 @@ import com.mascot.overlay.ui.OverlayView
 
 class PetAccessibilityService : AccessibilityService() {
     companion object { var instance: PetAccessibilityService? = null }
+
     private lateinit var wm: WindowManager
     private var overlay: OverlayView? = null
     var bridge: ServiceBridge? = null
